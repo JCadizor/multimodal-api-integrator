@@ -1,0 +1,84 @@
+{
+    "Routes": {
+        "text_to_speech": {
+            "endpoint": "/text-to-speech/speak"
+        },
+        "speech_to_text": {
+            "endpoint": "/speech-to-text/transcribe",
+            "host" : "/speech-to-text"
+        },
+        "text_to_text": {
+            "endpoint": "/chat",
+            "endpoint_stop":"/chat/stop",
+            "endpoint_stream":"/chat/stream"
+        },
+        "laguage_detector": {
+            "endpoint": "/language-detector/predict"
+        },
+        "sentiment_analysis": {
+            "endpoint": "chat/sentiment"
+
+        },
+        "system_loading": {
+            "endpoint": "/hardware",
+            "endpoint_load":"/hardware/load"
+        },
+        "language": {
+            "EN": "en",
+            "PT": "pt"
+        },
+        "voice": {
+            "english_adutls": {
+                "US": {
+                    "Jenny": "en-US-JennyNeural",
+                    "Guy": "en-US-GuyNeural"
+                },
+                "UK": {
+                    "Sonia": "en-GB-SoniaNeural",
+                    "Ryan": "en-GB-RyanNeural"
+                }
+            },
+            "english_children": {
+                "US": {
+                    "Ana": "en-US-AnaNeural"
+                },
+                "UK": {
+                    "Maisie": "en-GB-MaisieNeural"
+                }
+            },
+            "portuguese_adutls": {
+                "PT": {
+                    "Duarte": "pt-PT-DuarteNeural",
+                    "Raquel": "pt-PT-RaquelNeural"
+                },
+                "BR": {
+                    "Antonio": "pt-BR-AntonioNeural",
+                    "Francisca": "pt-BR-FranciscaNeural"
+                }
+            }
+        },
+        "languageMap": {
+            "bg": "Bulgarian",
+            "cs": "Czech",
+            "da": "Danish",
+            "de": "German",
+            "el": "Greek",
+            "en": "English",
+            "es": "Spanish",
+            "et": "Estonian",
+            "fi": "Finnish",
+            "fr": "French",
+            "hu": "Hungarian",
+            "it": "Italian",
+            "lt": "Lithuanian",
+            "lv": "Latvian",
+            "nl": "Dutch",
+            "pl": "Polish",
+            "pt": "Portuguese",
+            "ro": "Romanian",
+            "sk": "Slovak",
+            "sl": "Slovene",
+            "sv": "Swedish"
+        }
+    }
+}

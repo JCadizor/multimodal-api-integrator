@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "trabalho-preparatorio",
+    "slug": "trabalho-preparatorio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/domotic-icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/cropped-isep.jpg",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.cadizor.trabalhopreparatorio"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/domotic-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images//cropped-isep.jpg",
+          "imageWidth": 200,
+          "resizeMode": "expand",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-secure-store",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5165011e-38cc-4d21-b37d-a3d08a54b9d7"
+      }
+    }
+  }
+}
