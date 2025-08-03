@@ -58,7 +58,7 @@ export default function ChatRoom() {
 
   // 📚 FUNÇÃO ATUALIZADA - Agora salva após cada mensagem
   const sendMessage = async () => {
-    if (inputText.trim()) {
+    if (inputText.trim()) { // Verifica se o texto não está vazio
       const newMessage = {
         id: Date.now(), // Usando timestamp como ID único
         text: inputText.trim(),
