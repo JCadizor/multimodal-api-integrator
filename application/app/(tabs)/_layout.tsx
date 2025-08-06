@@ -32,7 +32,12 @@ export default function TabLayout() {
        name="settings-screen" options={{title: 'Confirgurações', tabBarIcon: ({ color }) => <MaterialIcons size={28} name="settings" color={color} /> }}
       />
       <Tabs.Screen
-        name="chatRoom" options={{title: 'Chat', tabBarIcon: ({ color }) => <MaterialIcons size={28} name="chat" color={color} /> }}
+        name="chatRoom" 
+        options={{
+          title: 'Chat', 
+          tabBarIcon: ({ color }) => <MaterialIcons size={28} name="chat" color={color} />,
+          href: null // Remove do menu de navegação
+        }} 
       />
     </Tabs>
   );

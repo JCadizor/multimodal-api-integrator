@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 // IMPORTS LOCAIS
 import api_configurations from '../../constants/api_configurations.json';
@@ -55,6 +57,9 @@ const initializeConfigValues = async () => {
 
 
 export default function HomeScreen() {
+  // NAVEGAÇÃO
+  const navigation = useNavigation();
+  
   // ESTADOS DO COMPONENTE
   const [isModalVisible, setModalVisible] = useState(false);
   const [userInput, setUserInput] = useState('');
@@ -70,6 +75,17 @@ export default function HomeScreen() {
     console.log('Inicializando valores de configuração...');
     initializeConfigValues();
   }, []);
+
+  // FUNÇÕES DE NAVEGAÇÃO PARA O CHAT
+  const navigateToTextChat = () => {
+    console.log('Navegando para chat em modo texto...');
+    navigation.navigate('chatRoom', { initialMode: 'text' });
+  };
+
+  const navigateToVoiceChat = () => {
+    console.log('Navegando para chat em modo voz...');
+    navigation.navigate('chatRoom', { initialMode: 'voice' });
+  };
 
 
 
@@ -226,20 +242,20 @@ export default function HomeScreen() {
     }
   };
 
-  // 📚 CARREGAMENTO INICIAL
+  // CARREGAMENTO INICIAL
   useEffect(() => {
     console.log('Inicializando valores de configuração...');
     initializeConfigValues();
   }, []);
 
-  // 🎨 RENDER DO COMPONENTE
+  // RENDER DO COMPONENTE
   return (
     <ImageBackground source={require('../../assets/images/cropped-isep.jpg')} style={styles.image}>
       <SafeAreaView style={styles.container}>
         <View style={styles.container}>
           <View style={styles.optionsGrid}>
             
-            {/* 🐛 MENU DEBUG (apenas se debugMode = true) */}
+            {/* MENU DEBUG (apenas se debugMode = true) */}
             {debugMode && (
               <View name ="debugMenu">
                 <Button
@@ -278,26 +294,33 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* 🚀 BOTÕES PRINCIPAIS */}
-            <Button
-              title="Falar com o Assistente (Texto)"
-              onPress={() => {
-                setModalVisible(true);
-                setCommunicationOption("text");
-                setUserInput('');
-              }}
-            />
-            <Button
-              title="Falar com o Assistente (Voz)"
-              onPress={() => handleAPICalls('STT')}
-            />
+            {/* BOTÕES PRINCIPAIS */}
+            <View style={styles.chatButtonsContainer}>
+              {/* Botão Chat Texto */}
+              <TouchableOpacity 
+                style={styles.chatButton}
+                onPress={navigateToTextChat}
+              >
+                <MaterialIcons name="chat" size={32} color="#007AFF" />
+                <Text style={styles.chatButtonText}>Chat Texto</Text>
+              </TouchableOpacity>
+              
+              {/* Botão Chat Voz */}
+              <TouchableOpacity 
+                style={styles.chatButton}
+                onPress={navigateToVoiceChat}
+              >
+                <MaterialIcons name="mic" size={32} color="#FF6B35" />
+                <Text style={styles.chatButtonText}>Chat Voz</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* 💬 CHAT COMPONENT */}
+          {/* CHAT COMPONENT */}
           {isChatVisible && <ChatComponent />}
         </View>
 
-        {/* 📱 MODAL PARA INPUT DO USUÁRIO */}
+        {/* MODAL PARA INPUT DO USUÁRIO */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -332,7 +355,7 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* 🔊 OVERLAY DE REPRODUÇÃO DE ÁUDIO */}
+        {/* OVERLAY DE REPRODUÇÃO DE ÁUDIO */}
         {isPlaying && (
           <View style={styles.overlay}>
             <View style={styles.overlayContent}>
@@ -346,7 +369,7 @@ export default function HomeScreen() {
   );
 }
 
-// 🎨 ESTILOS DO COMPONENTE
+// ESTILOS DO COMPONENTE
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -445,5 +468,37 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  chatButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginVertical: 20,
+    paddingHorizontal: 20,
+  },
+  chatButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 120,
+    marginHorizontal: 10,
+  },
+  chatButtonText: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
   },
 });

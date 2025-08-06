@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Switch } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
@@ -16,11 +16,15 @@ import {
 const CHAT_STORAGE_KEY = '@chat_messages';
 
 export default function ChatRoom() {
+  // PARÂMETROS DE NAVEGAÇÃO
+  const params = useLocalSearchParams();
+  const initialMode = params.initialMode || 'text'; // 'text' ou 'voice'
+  
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(initialMode === 'voice');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
   const [recordedAudio, setRecordedAudio] = useState(null);
@@ -29,28 +33,38 @@ export default function ChatRoom() {
 
   // CARREGAMENTO INICIAL - useEffect para persistência
   useEffect(() => {
-    loadMessages();
-    setupAudioMode();
-    loadConfigData();
+    console.log('Modo inicial do chat:', initialMode);
+    if (initialMode === 'voice') {
+      console.log('Chat iniciado em modo voz - gravação ativada automaticamente');
+    }
+    
+    initializeChat();
   }, []);
 
+  // FUNÇÃO DE INICIALIZAÇÃO DO CHAT
+  const initializeChat = async () => {
+    await loadMessages();
+    await loadConfig();
+    await setupAudio();
+  };
+
   // CARREGAMENTO DE CONFIGURAÇÕES - Carrega dados do AsyncStorage
-  const loadConfigData = async () => {
+  const loadConfig = async () => {
     try {
       const data = await retrieveAsyncStorageDataAsJson();
       if (data) {
         setConfigData(data);
-        console.log('⚙️ Configurações carregadas:', data);
+        console.log('Configurações carregadas:', data);
       } else {
-        console.log('⚠️ Nenhuma configuração encontrada');
+        console.log('Nenhuma configuração encontrada');
       }
     } catch (error) {
-      console.error('❌ Erro ao carregar configurações:', error);
+      console.error('Erro ao carregar configurações:', error);
     }
   };
 
   // CONFIGURAÇÃO DE ÁUDIO - Configurar modo de gravação
-  const setupAudioMode = async () => {
+  const setupAudio = async () => {
     try {
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
@@ -361,7 +375,7 @@ export default function ChatRoom() {
           <Text style={styles.headerTitle}>Chat com IA</Text>
           <View style={styles.voiceModeContainer}>
             <MaterialIcons 
-              name={isVoiceModeEnabled ? "volume-up" : "volume-off"} 
+              name={isVoiceModeEnabled ? "record-voice-over" : "voice-over-off"} 
               size={16} 
               color="white" 
               style={styles.voiceIcon}
