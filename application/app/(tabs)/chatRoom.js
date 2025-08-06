@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Switch } from 'react-native';
 import { router } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av';
 import MessageList from '../../components/MessageList';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
@@ -11,13 +12,32 @@ export default function ChatRoom() {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isAiTyping, setIsAiTyping] = useState(false);
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState(null);
+  const [recordedAudio, setRecordedAudio] = useState(null);
 
-  // 📚 CARREGAMENTO INICIAL - useEffect para persistência
+  // CARREGAMENTO INICIAL - useEffect para persistência
   useEffect(() => {
     loadMessages();
+    setupAudioMode();
   }, []);
 
-  // 📚 FUNÇÃO DE CARREGAMENTO - Lê dados do AsyncStorage
+  // CONFIGURAÇÃO DE ÁUDIO - Configurar modo de gravação
+  const setupAudioMode = async () => {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+    } catch (error) {
+      console.error('Erro ao configurar áudio:', error);
+    }
+  };
+
+  // FUNÇÃO DE CARREGAMENTO - Lê dados do AsyncStorage
   const loadMessages = async () => {
     try {
       setIsLoading(true);
@@ -46,7 +66,7 @@ export default function ChatRoom() {
     }
   };
 
-  // 📚 FUNÇÃO DE SALVAMENTO - Persiste dados no AsyncStorage
+  // FUNÇÃO DE SALVAMENTO - Persiste dados no AsyncStorage
   const saveMessages = async (messagesToSave) => {
     try {
       await AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messagesToSave));
@@ -56,7 +76,7 @@ export default function ChatRoom() {
     }
   };
 
-  // 📚 FUNÇÃO ATUALIZADA - Agora salva após cada mensagem
+  // FUNÇÃO ATUALIZADA - Agora salva após cada mensagem
   const sendMessage = async () => {
     if (inputText.trim()) { // Verifica se o texto não está vazio
       const newMessage = {
@@ -70,8 +90,14 @@ export default function ChatRoom() {
       setMessages(updatedMessages);
       setInputText('');
       
-      // 📚 PERSISTÊNCIA IMEDIATA - Salva após adicionar mensagem do usuário
+      // PERSISTÊNCIA IMEDIATA - Salva após adicionar mensagem do usuário
       await saveMessages(updatedMessages);
+      
+      // INDICADOR DE QUE A IA ESTÁ PROCESSANDO
+      setIsAiTyping(true);
+      
+      console.log('📝 Enviando mensagem...');
+      console.log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
       
       // Simular resposta da IA após um delay
       setTimeout(async () => {
@@ -84,13 +110,22 @@ export default function ChatRoom() {
         const finalMessages = [...updatedMessages, aiResponse];
         setMessages(finalMessages);
         
-        // 📚 PERSISTÊNCIA DA RESPOSTA IA - Salva resposta da IA também
+        // PERSISTÊNCIA DA RESPOSTA IA - Salva resposta da IA também
         await saveMessages(finalMessages);
-      }, 1000);
+        
+        // AQUI SERÁ INTEGRADO O TTS SE O MODO VOZ ESTIVER ATIVO
+        if (isVoiceModeEnabled) {
+          console.log('🔊 Modo de voz ativo - TTS será executado aqui');
+          // TODO: Integrar função handleTTS do utils.js
+        }
+        
+        // REMOVER INDICADOR DE PROCESSAMENTO
+        setIsAiTyping(false);
+      }, 2000); // Aumentei para 2 segundos para simular processamento mais realista
     }
   };
 
-  // 📚 FUNÇÃO UTILITÁRIA - Limpar conversa (opcional)
+  // FUNÇÃO UTILITÁRIA - Limpar conversa (opcional)
   const clearChat = async () => {
     Alert.alert(
       'Limpar Conversa',
@@ -104,6 +139,7 @@ export default function ChatRoom() {
             try {
               await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
               setMessages([]);
+              setIsAiTyping(false); // Reset do estado de typing também
               Alert.alert('Sucesso', 'Conversa limpa com sucesso!');
             } catch (error) {
               Alert.alert('Erro', 'Falha ao limpar a conversa');
@@ -114,13 +150,49 @@ export default function ChatRoom() {
     );
   };
 
+  // FUNÇÃO PARA TOGGLE DE VOZ - Gerencia modo TTS/STT
+  const toggleVoiceMode = () => {
+    const newMode = !isVoiceModeEnabled;
+    setIsVoiceModeEnabled(newMode);
+    
+    // Feedback para o usuário
+    Alert.alert(
+      'Modo de Voz',
+      newMode 
+        ? 'Modo de voz ativado! As respostas da IA serão reproduzidas em áudio.' 
+        : 'Modo de voz desativado. Voltando ao modo texto.',
+      [{ text: 'OK' }]
+    );
+    
+    console.log('🔊 Modo de voz:', newMode ? 'ATIVADO' : 'DESATIVADO');
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chat com IA</Text>
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Chat com IA</Text>
+          <View style={styles.voiceModeContainer}>
+            <MaterialIcons 
+              name={isVoiceModeEnabled ? "volume-up" : "volume-off"} 
+              size={16} 
+              color="white" 
+              style={styles.voiceIcon}
+            />
+            <Switch
+              value={isVoiceModeEnabled}
+              onValueChange={toggleVoiceMode}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={isVoiceModeEnabled ? '#f5dd4b' : '#f4f3f4'}
+              style={styles.voiceSwitch}
+            />
+          </View>
+        </View>
+        
         <TouchableOpacity onPress={clearChat} style={styles.clearButton}>
           <MaterialIcons name="delete" size={20} color="white" />
         </TouchableOpacity>
@@ -129,10 +201,19 @@ export default function ChatRoom() {
       <View style={styles.messagesContainer}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
             <Text style={styles.loadingText}>Carregando conversa...</Text>
           </View>
         ) : (
-          <MessageList messages={messages} />
+          <>
+            <MessageList messages={messages} />
+            {isAiTyping && (
+              <View style={styles.typingIndicator}>
+                <ActivityIndicator size="small" color="#666" />
+                <Text style={styles.typingText}>IA está digitando...</Text>
+              </View>
+            )}
+          </>
         )}
       </View>
       
@@ -144,8 +225,16 @@ export default function ChatRoom() {
           placeholder="Digite sua mensagem..."
           multiline
         />
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <MaterialIcons name="send" size={24} color="white" />
+        <TouchableOpacity 
+          onPress={sendMessage} 
+          style={[styles.sendButton, isAiTyping && styles.sendButtonDisabled]}
+          disabled={isAiTyping}
+        >
+          {isAiTyping ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <MaterialIcons name="send" size={24} color="white" />
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -172,12 +261,29 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 5,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'center',
+    marginBottom: 4,
+  },
+  voiceModeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 15,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  voiceIcon: {
+    marginRight: 4,
+  },
+  voiceSwitch: {
+    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
   },
   loadingContainer: {
     flex: 1,
@@ -218,5 +324,24 @@ const styles = StyleSheet.create({
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#cccccc',
+  },
+  typingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 15,
+    marginVertical: 5,
+    alignSelf: 'flex-start',
+  },
+  typingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   }
 })

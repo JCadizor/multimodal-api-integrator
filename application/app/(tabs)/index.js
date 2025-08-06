@@ -12,24 +12,22 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Buffer } from 'buffer';
 
-// 📦 IMPORTS LOCAIS
+// IMPORTS LOCAIS
 import api_configurations from '../../constants/api_configurations.json';
 import ChatComponent from '../../components/chatComponent.js';
 import { sendSentimentAnalysis } from '../../scripts/sentimentAnalysis.js';
 import { hardware, hardwareLoad } from '../../scripts/hardware.js';
+import { handleTTS } from '../../scripts/utils.js';
 
-// 📋 CONFIGURAÇÕES GLOBAIS
+// CONFIGURAÇÕES GLOBAIS
 const apiConfigurations = api_configurations.Routes;
 const parsedData = {};
 const debugMode = false;
 
-// 📚 FUNÇÃO DE INICIALIZAÇÃO - Carrega configurações do AsyncStorage
+// FUNÇÃO DE INICIALIZAÇÃO - Carrega configurações do AsyncStorage
 const initializeConfigValues = async () => {
   try {
     const savedData = await AsyncStorage.getItem('userSettings');
@@ -57,7 +55,7 @@ const initializeConfigValues = async () => {
 
 
 export default function HomeScreen() {
-  // 📱 ESTADOS DO COMPONENTE
+  // ESTADOS DO COMPONENTE
   const [isModalVisible, setModalVisible] = useState(false);
   const [userInput, setUserInput] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,7 +65,7 @@ export default function HomeScreen() {
   const [currentReply, setCurrentReply] = useState('');
   const [isChatVisible, setIsChatVisible] = useState(false);
 
-  // 📚 CARREGAMENTO INICIAL
+  // CARREGAMENTO INICIAL
   useEffect(() => {
     console.log('Inicializando valores de configuração...');
     initializeConfigValues();
@@ -75,7 +73,7 @@ export default function HomeScreen() {
 
 
 
-  // 📡 FUNÇÃO PRINCIPAL - Gerencia chamadas para APIs
+  // FUNÇÃO PRINCIPAL - Gerencia chamadas para APIs
   const handleAPICalls = async (option) => {
     console.log('Opção selecionada:', option);
     
@@ -89,27 +87,27 @@ export default function HomeScreen() {
     console.log('User Input:', userInput);
 
     switch (option) {
-      // 🔊 TEXT TO SPEECH
+      // TEXT TO SPEECH
       case 'TTS':
-        await handleTTS();
+        await handleTTSLocal();
         break;
 
-      // 🎤 SPEECH TO TEXT  
+      // SPEECH TO TEXT  
       case 'STT':
         await handleSTT();
         break;
 
-      // 🌍 LANGUAGE DETECTION
+      // LANGUAGE DETECTION
       case 'LD':
         await handleLanguageDetection();
         break;
 
-      // 😊 SENTIMENT ANALYSIS
+      // SENTIMENT ANALYSIS
       case 'SA':
         await handleSentimentAnalysis();
         break;
 
-      // 💻 HARDWARE STATUS
+      // HARDWARE STATUS
       case 'Hardware':
         await handleHardware();
         break;
@@ -120,70 +118,18 @@ export default function HomeScreen() {
     }
   };
 
-  // 🔊 TTS - Text to Speech
-  const handleTTS = async () => {
-    console.log('🔊 Processando TTS...');
-    
-    const TTSendPoint = apiConfigurations.text_to_speech.endpoint;
-    const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${TTSendPoint}`;
-    
-    console.log('TTS URL:', url);
-
+  // TTS - Text to Speech
+  const handleTTSLocal = async () => {
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: userInput,
-          language: 'en',
-          voice: 'en-US-JennyNeural',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`❌ HTTP error! status: ${response.status}`);
-      }
-
-      console.log('✅ Comunicação com a API bem sucedida!', response.status);
-      
-      const arrayBuffer = await response.arrayBuffer();
-      const base64String = Buffer.from(arrayBuffer).toString('base64');
-
-      // Salvar áudio localmente
-      const fileUri = FileSystem.documentDirectory + 'output.mp3';
-      await FileSystem.writeAsStringAsync(fileUri, base64String, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      
-      console.log('📁 Áudio salvo em:', fileUri);
-
-      // Reproduzir áudio
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: fileUri },
-        { shouldPlay: true }
-      );
-      
-      setIsPlaying(true);
-      console.log('🔊 Reproduzindo áudio...');
-      
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) {
-          setIsPlaying(false);
-          console.log('✅ Áudio reproduzido com sucesso!');
-        }
-      });
-      
-      await sound.playAsync();
-      
+      await handleTTS(userInput, parsedData, setIsPlaying);
+      setModalVisible(false);
     } catch (error) {
-      console.error('❌ Erro durante TTS:', error);
-      Alert.alert('Erro', 'Erro durante a comunicação com a API de TTS!');
+      // Erro já foi tratado na função handleTTS
+      setModalVisible(false);
     }
-    
-    setModalVisible(false);
   };
 
-  // 🎤 STT - Speech to Text
+  // STT - Speech to Text
   const handleSTT = async () => {
     console.log('🎤 Processando STT...');
     
@@ -235,7 +181,7 @@ export default function HomeScreen() {
     }
   };
 
-  // 🌍 Language Detection
+  // Language Detection
   const handleLanguageDetection = async () => {
     console.log('🌍 Processando Language Detection...');
     
@@ -270,7 +216,7 @@ export default function HomeScreen() {
     setModalVisible(false);
   };
 
-  // 😊 Sentiment Analysis
+  // Sentiment Analysis
   const handleSentimentAnalysis = async () => {
     console.log('😊 Processando Sentiment Analysis...');
     
@@ -283,7 +229,7 @@ export default function HomeScreen() {
     }
   };
 
-  // 💻 Hardware Status
+  // Hardware Status
   const handleHardware = async () => {
     console.log('💻 Consultando status do Hardware...');
     
