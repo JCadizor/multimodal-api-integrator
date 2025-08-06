@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Switch, ImageBackground } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -373,7 +373,12 @@ export default function ChatRoom() {
   };
 
   return (
-    <View style={styles.container}>
+    <ImageBackground 
+      source={require('../../assets/images/cropped-isep.jpg')} 
+      style={styles.backgroundImage}
+      imageStyle={{ opacity: 0.5 }}
+    >
+      <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="white" />
@@ -476,13 +481,18 @@ export default function ChatRoom() {
         )}
       </View>
     </View>
+    </ImageBackground>
   )
 }
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    resizeMode: 'cover',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(245, 245, 245, 0.7)', // Background semi-transparente
   },
   header: {
     flexDirection: 'row',
@@ -541,9 +551,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 10,
     paddingVertical: 10,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)', // Mais visível com transparência
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
   },
   voiceInputContainer: {
     flex: 1,
@@ -596,10 +611,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgba(240, 240, 240, 0.95)', // Mais visível com transparência
     borderRadius: 15,
     marginVertical: 5,
     alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   typingText: {
     marginLeft: 8,
@@ -612,10 +632,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: '#e6f3ff',
+    backgroundColor: 'rgba(230, 243, 255, 0.95)', // Mais visível com transparência
     borderRadius: 15,
     marginVertical: 5,
     alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   ttsText: {
     marginLeft: 8,
