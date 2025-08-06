@@ -24,6 +24,7 @@ export default function ChatRoom() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  // Modo de voz baseado no parâmetro de navegação: 'voice' = true, 'text' = false
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(initialMode === 'voice');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
@@ -34,8 +35,14 @@ export default function ChatRoom() {
   // CARREGAMENTO INICIAL - useEffect para persistência
   useEffect(() => {
     console.log('Modo inicial do chat:', initialMode);
+    
+    // Configurar modo de voz baseado no parâmetro de navegação
     if (initialMode === 'voice') {
-      console.log('Chat iniciado em modo voz - gravação ativada automaticamente');
+      console.log('🎤 Chat iniciado em modo VOZ - gravação ativada automaticamente');
+      setIsVoiceModeEnabled(true);
+    } else {
+      console.log('📝 Chat iniciado em modo TEXTO - input de texto ativado');
+      setIsVoiceModeEnabled(false);
     }
     
     initializeChat();
@@ -292,7 +299,7 @@ export default function ChatRoom() {
       if (!configData.hostnameAPI_TTS || !configData.portAPI) {
         console.warn('⚠️ Configurações não carregadas, usando transcrição simulada');
         const simulatedTranscription = "Mensagem de áudio transcrita (simulada)";
-        await createMessageFromTranscription(simulatedTranscription, true);
+        await createMessageFromTranscription(simulatedTranscription, true, null, audioUri);
         return;
       }
 
@@ -327,24 +334,25 @@ export default function ChatRoom() {
       }
       
       // 4. Criar mensagem com informações finais
-      await createMessageFromTranscription(finalTranscription, true, detectedLanguage);
+      await createMessageFromTranscription(finalTranscription, true, detectedLanguage, audioUri);
       
     } catch (error) {
       console.error('❌ Erro ao processar áudio:', error);
       // Fallback para simulação em caso de erro
       const fallbackTranscription = "Erro na transcrição - mensagem simulada";
-      await createMessageFromTranscription(fallbackTranscription, true);
+      await createMessageFromTranscription(fallbackTranscription, true, null, audioUri);
     }
   };
 
   // FUNÇÃO AUXILIAR - Criar mensagem a partir da transcrição
-  const createMessageFromTranscription = async (transcriptionText, isVoiceMessage = false, detectedLanguage = null) => {
+  const createMessageFromTranscription = async (transcriptionText, isVoiceMessage = false, detectedLanguage = null, audioUri = null) => {
     const newMessage = {
       id: Date.now(),
       text: transcriptionText,
       sender: "user",
       timestamp: new Date(),
       isVoiceMessage,
+      audioUri, // URI do áudio gravado para playback
       detectedLanguage: detectedLanguage ? {
         code: detectedLanguage.code,
         name: detectedLanguage.name
@@ -403,7 +411,7 @@ export default function ChatRoom() {
           </View>
         ) : (
           <>
-            <MessageList messages={messages} />
+            <MessageList messages={messages} configData={configData} />
             {isAiTyping && (
               <View style={styles.typingIndicator}>
                 <ActivityIndicator size="small" color="#666" />
