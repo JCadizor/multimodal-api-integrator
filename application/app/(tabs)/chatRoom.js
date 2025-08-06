@@ -5,7 +5,13 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import MessageList from '../../components/MessageList';
-import { handleTTS, handleSTT, handleLanguageDetection, retrieveAsyncStorageDataAsJson } from '../../scripts/utils';
+import { 
+  handleTTS, 
+  handleSTT, 
+  handleSTTWithLanguage,
+  handleLanguageDetection, 
+  retrieveAsyncStorageDataAsJson 
+} from '../../scripts/utils';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
 
@@ -276,21 +282,38 @@ export default function ChatRoom() {
         return;
       }
 
-      // 1. Usar STT real para transcrever o áudio
-      const transcription = await handleSTT(audioUri, configData);
+      // 1. Primeira transcrição com idioma padrão para detectar idioma
+      console.log('🎤 Primeira transcrição para detecção de idioma...');
+      const initialTranscription = await handleSTT(audioUri, configData);
       
       // 2. Detectar idioma do texto transcrito
       let detectedLanguage = null;
+      let finalTranscription = initialTranscription;
+      
       try {
-        detectedLanguage = await handleLanguageDetection(transcription, configData);
+        detectedLanguage = await handleLanguageDetection(initialTranscription, configData);
         console.log('🌍 Idioma detectado:', detectedLanguage.name, `(${detectedLanguage.code})`);
+        
+        // 3. Se o idioma detectado for diferente do padrão, fazer nova transcrição
+        const detectedLangCode = detectedLanguage.code;
+        const defaultLang = configData.defaultLanguage || 'pt'; // Usar idioma padrão configurado
+        
+        if (detectedLangCode !== defaultLang) {
+          console.log(`🔄 Re-transcrevendo áudio com idioma detectado: ${detectedLangCode}`);
+          finalTranscription = await handleSTTWithLanguage(audioUri, configData, detectedLangCode);
+          console.log('✅ Transcrição final:', finalTranscription);
+        } else {
+          console.log('✅ Idioma detectado coincide com padrão, usando transcrição inicial');
+        }
+        
       } catch (langError) {
         console.warn('⚠️ Erro na detecção de idioma:', langError);
-        // Continuar sem detecção de idioma
+        console.log('📝 Continuando com transcrição inicial');
+        // Continuar com a transcrição inicial
       }
       
-      // 3. Criar mensagem com informações adicionais
-      await createMessageFromTranscription(transcription, true, detectedLanguage);
+      // 4. Criar mensagem com informações finais
+      await createMessageFromTranscription(finalTranscription, true, detectedLanguage);
       
     } catch (error) {
       console.error('❌ Erro ao processar áudio:', error);

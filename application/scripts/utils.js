@@ -89,13 +89,20 @@ export async function handleSTT(audioUri, parsedData) {
   const STTendPoint = apiConfigurations.speech_to_text.endpoint;
   const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${STTendPoint}`;
   
+  // Usar modelo selecionado nas configurações ou fallback para base
+  const selectedModel = parsedData.selectedSTTModel || 'base';
+  // Usar idioma padrão das configurações ou fallback para português
+  const defaultLang = parsedData.defaultLanguage || 'pt';
+  
   console.log('STT URL:', url);
+  console.log('🎤 Modelo STT selecionado:', selectedModel);
+  console.log('🌍 Idioma padrão:', defaultLang);
 
   try {
     // Preparar FormData
     const formData = new FormData();
-    formData.append('language', 'pt'); // Português para o usuário
-    formData.append('model_size', 'base.en');
+    formData.append('language', defaultLang); // Usar idioma padrão configurado
+    formData.append('model_size', selectedModel); // Usar modelo selecionado
     formData.append('file', {
       uri: audioUri,
       name: 'audio_recording.wav',
@@ -124,6 +131,57 @@ export async function handleSTT(audioUri, parsedData) {
   } catch (error) {
     console.error('❌ Erro ao processar STT:', error);
     Alert.alert('Erro', 'Erro ao enviar o áudio para transcrição.');
+    throw error;
+  }
+}
+
+// STT com idioma específico - Speech to Text with Language Detection
+export async function handleSTTWithLanguage(audioUri, parsedData, languageCode) {
+  console.log('🎤 Processando STT com idioma específico:', languageCode);
+  
+  const apiConfigurations = api_configurations.Routes;
+  const STTendPoint = apiConfigurations.speech_to_text.endpoint;
+  const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${STTendPoint}`;
+  
+  // Usar modelo selecionado nas configurações ou fallback para base
+  const selectedModel = parsedData.selectedSTTModel || 'base';
+  
+  console.log('STT URL:', url);
+  console.log('🎤 Modelo STT selecionado:', selectedModel);
+
+  try {
+    // Preparar FormData com idioma detectado
+    const formData = new FormData();
+    formData.append('language', languageCode); // Usar idioma detectado
+    formData.append('model_size', selectedModel); // Usar modelo selecionado
+    formData.append('file', {
+      uri: audioUri,
+      name: 'audio_recording.wav',
+      type: 'audio/wav',
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Erro da API: ${result.message || response.status}`);
+    }
+
+    console.log('📝 Resposta da STT (com idioma específico):', result);
+
+    // Extrair texto transcrito
+    const transcript = result?.segments?.map(seg => seg.text.trim()).join(' ') || 'Sem conteúdo detectado.';
+    
+    console.log('✅ Texto transcrito (idioma específico):', transcript);
+    return transcript;
+
+  } catch (error) {
+    console.error('❌ Erro ao processar STT com idioma específico:', error);
+    Alert.alert('Erro', 'Erro ao enviar o áudio para transcrição com idioma específico.');
     throw error;
   }
 }

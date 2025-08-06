@@ -25,6 +25,8 @@ const [authPassword, setAuthPassword] = useState('');
 const [profileImage, setProfileImage] = useState(null);
 const [debugMode, setDebugMode] = useState(false); // State to control debug mode visibility
 const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural'); // Default voice
+const [selectedSTTModel, setSelectedSTTModel] = useState('base'); // Default STT model
+const [defaultLanguage, setDefaultLanguage] = useState('pt'); // Default language
 
 const toggleSwitch = async (value) => {
   
@@ -87,6 +89,80 @@ const generateVoiceOptions = () => {
   return voiceOptions;
 };
 
+// FUNÇÃO PARA GERAR OPÇÕES DE MODELO STT
+const generateSTTModelOptions = () => {
+  const modelOptions = [];
+  const modelConfig = api_configurations.Routes.speech_to_text.models;
+  
+  Object.keys(modelConfig).forEach(modelKey => {
+    const model = modelConfig[modelKey];
+    modelOptions.push({
+      label: `${model.name} - ${model.description}`,
+      value: modelKey
+    });
+  });
+  
+  return modelOptions;
+};
+
+// FUNÇÃO PARA GERAR OPÇÕES DE IDIOMA PADRÃO
+const generateLanguageOptions = () => {
+  const languageOptions = [];
+  const languageMap = api_configurations.Routes.languageMap;
+  
+  // Adicionar idiomas mais comuns primeiro
+  const commonLanguages = ['pt', 'en', 'es', 'fr'];
+  
+  commonLanguages.forEach(langCode => {
+    if (languageMap[langCode]) {
+      languageOptions.push({
+        label: `${getLanguageFlag(langCode)} ${languageMap[langCode]} (${langCode})`,
+        value: langCode
+      });
+    }
+  });
+  
+  // Adicionar outros idiomas restantes
+  Object.keys(languageMap).forEach(langCode => {
+    if (!commonLanguages.includes(langCode)) {
+      languageOptions.push({
+        label: `🌍 ${languageMap[langCode]} (${langCode})`,
+        value: langCode
+      });
+    }
+  });
+  
+  return languageOptions;
+};
+
+// FUNÇÃO PARA OBTER FLAG DO IDIOMA
+const getLanguageFlag = (languageCode) => {
+  const flags = {
+    'pt': '🇵🇹',
+    'en': '🇺🇸',
+    'es': '🇪🇸',
+    'fr': '🇫🇷',
+    'de': '🇩🇪',
+    'it': '🇮🇹',
+    'nl': '🇳🇱',
+    'pl': '🇵🇱',
+    'sv': '🇸🇪',
+    'da': '🇩🇰',
+    'fi': '🇫🇮',
+    'bg': '🇧🇬',
+    'cs': '🇨🇿',
+    'el': '🇬🇷',
+    'et': '🇪🇪',
+    'hu': '🇭🇺',
+    'lt': '🇱🇹',
+    'lv': '🇱🇻',
+    'ro': '🇷🇴',
+    'sk': '🇸🇰',
+    'sl': '🇸🇮'
+  };
+  return flags[languageCode] || '🌍';
+};
+
 
 
 const  initializeConfigValues = async ()=> {
@@ -111,6 +187,8 @@ const  initializeConfigValues = async ()=> {
 
       setProfileImage(parsedData.profileImage || null);
       setSelectedVoice(parsedData.selectedVoice || 'en-US-JennyNeural'); // Load selected voice
+      setSelectedSTTModel(parsedData.selectedSTTModel || 'base'); // Load selected STT model
+      setDefaultLanguage(parsedData.defaultLanguage || 'pt'); // Load default language
       
       console.log('📦 Dados carregados com sucesso!');
       console.log('Nome: ' + parsedData.name);
@@ -141,11 +219,15 @@ const saveSettings = async () => {
       authPassword,
       profileImage,
       selectedVoice, // Save selected voice
+      selectedSTTModel, // Save selected STT model
+      defaultLanguage, // Save default language
     };
 
     await AsyncStorage.setItem('userSettings', JSON.stringify(userData));
     Alert.alert('Sucesso', 'Configurações salvas!');
     console.log('🔊 Voz selecionada salva:', selectedVoice);
+    console.log('🎤 Modelo STT selecionado salvo:', selectedSTTModel);
+    console.log('🌍 Idioma padrão salvo:', defaultLanguage);
   } catch (error) {
     console.error("❌ Erro ao guardar os dados!", error);
   }
@@ -333,6 +415,66 @@ const pickImage = async () => {
                 <View style={styles.selectedVoiceInfo}>
                   <Text style={styles.selectedVoiceText}>
                     🔊 Voz Atual: {selectedVoice}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.container}>
+                <Text style={{fontSize: 20}}>Configurações de STT</Text>
+                <Text>Selecione o modelo para Speech-to-Text</Text>
+                
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Modelo STT Selecionado:</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={selectedSTTModel}
+                      onValueChange={(itemValue) => setSelectedSTTModel(itemValue)}
+                      style={styles.picker}
+                    >
+                      {generateSTTModelOptions().map((option, index) => (
+                        <Picker.Item 
+                          key={index}
+                          label={option.label} 
+                          value={option.value} 
+                        />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+                
+                <View style={styles.selectedVoiceInfo}>
+                  <Text style={styles.selectedVoiceText}>
+                    🎤 Modelo STT Atual: {selectedSTTModel}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.container}>
+                <Text style={{fontSize: 20}}>Idioma Padrão</Text>
+                <Text>Selecione o idioma padrão para transcrição quando a detecção automática falhar</Text>
+                
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Idioma Padrão Selecionado:</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={defaultLanguage}
+                      onValueChange={(itemValue) => setDefaultLanguage(itemValue)}
+                      style={styles.picker}
+                    >
+                      {generateLanguageOptions().map((option, index) => (
+                        <Picker.Item 
+                          key={index}
+                          label={option.label} 
+                          value={option.value} 
+                        />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+                
+                <View style={styles.selectedVoiceInfo}>
+                  <Text style={styles.selectedVoiceText}>
+                    🌍 Idioma Padrão Atual: {defaultLanguage}
                   </Text>
                 </View>
               </View>

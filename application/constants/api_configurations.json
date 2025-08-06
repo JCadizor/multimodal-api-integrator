@@ -5,7 +5,73 @@
         },
         "speech_to_text": {
             "endpoint": "/speech-to-text/transcribe",
-            "host" : "/speech-to-text"
+            "host" : "/speech-to-text",
+            "models": {
+                "tiny": {
+                    "name": "Tiny",
+                    "description": "Fastest, least accurate"
+                },
+                "tiny.en": {
+                    "name": "Tiny (English)",
+                    "description": "Fastest, English-only"
+                },
+                "base": {
+                    "name": "Base",
+                    "description": "Good balance (Default)"
+                },
+                "base.en": {
+                    "name": "Base (English)",
+                    "description": "Good balance, English-only"
+                },
+                "small": {
+                    "name": "Small",
+                    "description": "Better accuracy"
+                },
+                "small.en": {
+                    "name": "Small (English)",
+                    "description": "Better accuracy, English-only"
+                },
+                "distil-small.en": {
+                    "name": "Distil Small (English)",
+                    "description": "Optimized small model"
+                },
+                "medium": {
+                    "name": "Medium",
+                    "description": "High accuracy"
+                },
+                "medium.en": {
+                    "name": "Medium (English)",
+                    "description": "High accuracy, English-only"
+                },
+                "distil-medium.en": {
+                    "name": "Distil Medium (English)",
+                    "description": "Optimized medium model"
+                },
+                "large-v1": {
+                    "name": "Large v1",
+                    "description": "Highest accuracy (legacy)"
+                },
+                "large-v2": {
+                    "name": "Large v2",
+                    "description": "Highest accuracy (improved)"
+                },
+                "large-v3": {
+                    "name": "Large v3",
+                    "description": "Latest and most accurate"
+                },
+                "large": {
+                    "name": "Large",
+                    "description": "Latest large model"
+                },
+                "distil-large-v2": {
+                    "name": "Distil Large v2",
+                    "description": "Optimized large model v2"
+                },
+                "distil-large-v3": {
+                    "name": "Distil Large v3",
+                    "description": "Optimized large model v3"
+                }
+            }
         },
         "text_to_text": {
             "endpoint": "/chat",
