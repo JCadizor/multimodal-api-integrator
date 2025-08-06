@@ -20,7 +20,7 @@ import api_configurations from '../../constants/api_configurations.json';
 import ChatComponent from '../../components/chatComponent.js';
 import { sendSentimentAnalysis } from '../../scripts/sentimentAnalysis.js';
 import { hardware, hardwareLoad } from '../../scripts/hardware.js';
-import { handleTTS } from '../../scripts/utils.js';
+import { handleTTS, handleLanguageDetection } from '../../scripts/utils.js';
 
 // CONFIGURAÇÕES GLOBAIS
 const apiConfigurations = api_configurations.Routes;
@@ -99,7 +99,7 @@ export default function HomeScreen() {
 
       // LANGUAGE DETECTION
       case 'LD':
-        await handleLanguageDetection();
+        await handleLanguageDetectionLocal();
         break;
 
       // SENTIMENT ANALYSIS
@@ -182,37 +182,13 @@ export default function HomeScreen() {
   };
 
   // Language Detection
-  const handleLanguageDetection = async () => {
-    console.log('🌍 Processando Language Detection...');
-    
-    const LDendPoint = apiConfigurations.laguage_detector.endpoint;
-    const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${LDendPoint}`;
-    
-    console.log('LD URL:', url);
-
+  const handleLanguageDetectionLocal = async () => {
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: userInput }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`❌ HTTP error! status: ${response.status}`);
-      }
-
-      console.log('✅ Comunicação com a API bem sucedida!', response.status);
-      
-      const result = await response.json();
-      const languageName = apiConfigurations.languageMap[result.language] || result.language;
-      
-      Alert.alert('Idioma Detectado', languageName);
-
+      const result = await handleLanguageDetection(userInput, parsedData);
+      Alert.alert('Idioma Detectado', result.name);
     } catch (error) {
-      console.error('❌ Erro durante Language Detection:', error);
-      Alert.alert('Erro', 'Erro durante a detecção de idioma!');
+      // Erro já foi tratado na função handleLanguageDetection
     }
-    
     setModalVisible(false);
   };
 

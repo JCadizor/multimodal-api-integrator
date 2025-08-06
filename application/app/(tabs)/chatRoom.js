@@ -5,6 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import MessageList from '../../components/MessageList';
+import { handleTTS, handleSTT, handleLanguageDetection, retrieveAsyncStorageDataAsJson } from '../../scripts/utils';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
 
@@ -17,12 +18,30 @@ export default function ChatRoom() {
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
   const [recordedAudio, setRecordedAudio] = useState(null);
+  const [configData, setConfigData] = useState({});
+  const [isTTSPlaying, setIsTTSPlaying] = useState(false);
 
   // CARREGAMENTO INICIAL - useEffect para persistência
   useEffect(() => {
     loadMessages();
     setupAudioMode();
+    loadConfigData();
   }, []);
+
+  // CARREGAMENTO DE CONFIGURAÇÕES - Carrega dados do AsyncStorage
+  const loadConfigData = async () => {
+    try {
+      const data = await retrieveAsyncStorageDataAsJson();
+      if (data) {
+        setConfigData(data);
+        console.log('⚙️ Configurações carregadas:', data);
+      } else {
+        console.log('⚠️ Nenhuma configuração encontrada');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar configurações:', error);
+    }
+  };
 
   // CONFIGURAÇÃO DE ÁUDIO - Configurar modo de gravação
   const setupAudioMode = async () => {
@@ -93,36 +112,53 @@ export default function ChatRoom() {
       // PERSISTÊNCIA IMEDIATA - Salva após adicionar mensagem do usuário
       await saveMessages(updatedMessages);
       
-      // INDICADOR DE QUE A IA ESTÁ PROCESSANDO
-      setIsAiTyping(true);
-      
-      console.log('📝 Enviando mensagem...');
-      console.log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
-      
-      // Simular resposta da IA após um delay
-      setTimeout(async () => {
-        const aiResponse = {
-          id: Date.now() + 1, // ID único para resposta da IA
-          text: "Obrigado pela sua mensagem! Como posso ajudá-lo?",
-          sender: "ai",
-          timestamp: new Date()
-        };
-        const finalMessages = [...updatedMessages, aiResponse];
-        setMessages(finalMessages);
-        
-        // PERSISTÊNCIA DA RESPOSTA IA - Salva resposta da IA também
-        await saveMessages(finalMessages);
-        
-        // AQUI SERÁ INTEGRADO O TTS SE O MODO VOZ ESTIVER ATIVO
-        if (isVoiceModeEnabled) {
-          console.log('🔊 Modo de voz ativo - TTS será executado aqui');
-          // TODO: Integrar função handleTTS do utils.js
-        }
-        
-        // REMOVER INDICADOR DE PROCESSAMENTO
-        setIsAiTyping(false);
-      }, 2000); // Aumentei para 2 segundos para simular processamento mais realista
+      // Processar resposta da IA
+      await processAIResponse(updatedMessages);
     }
+  };
+
+  // FUNÇÃO PARA PROCESSAR RESPOSTA DA IA
+  const processAIResponse = async (currentMessages) => {
+    // INDICADOR DE QUE A IA ESTÁ PROCESSANDO
+    setIsAiTyping(true);
+    
+    console.log('📝 Processando resposta da IA...');
+    console.log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
+    
+    // Simular resposta da IA após um delay
+    setTimeout(async () => {
+      const aiResponse = {
+        id: Date.now() + 1, // ID único para resposta da IA
+        text: "Obrigado pela sua mensagem! Como posso ajudá-lo?",
+        sender: "ai",
+        timestamp: new Date()
+      };
+      const finalMessages = [...currentMessages, aiResponse];
+      setMessages(finalMessages);
+      
+      // PERSISTÊNCIA DA RESPOSTA IA - Salva resposta da IA também
+      await saveMessages(finalMessages);
+      
+      // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
+      if (isVoiceModeEnabled) {
+        console.log('🔊 Modo de voz ativo - Executando TTS...');
+        try {
+          // Verificar se temos configurações
+          if (configData.hostnameAPI_TTS && configData.portAPI) {
+            await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
+          } else {
+            console.warn('⚠️ Configurações não disponíveis para TTS');
+            Alert.alert('Aviso', 'Configurações de TTS não disponíveis');
+          }
+        } catch (error) {
+          console.error('❌ Erro no TTS:', error);
+          Alert.alert('Erro', 'Erro ao reproduzir resposta em áudio');
+        }
+      }
+      
+      // REMOVER INDICADOR DE PROCESSAMENTO
+      setIsAiTyping(false);
+    }, 2000);
   };
 
   // FUNÇÃO UTILITÁRIA - Limpar conversa (opcional)
@@ -137,9 +173,18 @@ export default function ChatRoom() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Parar gravação se estiver ativa
+              if (recording) {
+                await stopRecording();
+              }
+              
               await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
               setMessages([]);
-              setIsAiTyping(false); // Reset do estado de typing também
+              setIsAiTyping(false);
+              setIsRecording(false);
+              setRecordedAudio(null);
+              setIsTTSPlaying(false);
+              
               Alert.alert('Sucesso', 'Conversa limpa com sucesso!');
             } catch (error) {
               Alert.alert('Erro', 'Falha ao limpar a conversa');
@@ -155,16 +200,131 @@ export default function ChatRoom() {
     const newMode = !isVoiceModeEnabled;
     setIsVoiceModeEnabled(newMode);
     
+    // Limpar estado de gravação ao trocar modo
+    if (!newMode && recording) {
+      stopRecording();
+    }
+    
     // Feedback para o usuário
     Alert.alert(
       'Modo de Voz',
       newMode 
-        ? 'Modo de voz ativado! As respostas da IA serão reproduzidas em áudio.' 
+        ? 'Modo de voz ativado! Pressione o botão do microfone para gravar sua mensagem.' 
         : 'Modo de voz desativado. Voltando ao modo texto.',
       [{ text: 'OK' }]
     );
     
     console.log('🔊 Modo de voz:', newMode ? 'ATIVADO' : 'DESATIVADO');
+  };
+
+  // FUNÇÃO PARA INICIAR GRAVAÇÃO
+  const startRecording = async () => {
+    try {
+      console.log('🎤 Iniciando gravação...');
+      
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      setRecording(recording);
+      setIsRecording(true);
+      console.log('🎤 Gravação iniciada!');
+      
+    } catch (error) {
+      console.error('❌ Erro ao iniciar gravação:', error);
+      Alert.alert('Erro', 'Não foi possível iniciar a gravação');
+    }
+  };
+
+  // FUNÇÃO PARA PARAR GRAVAÇÃO
+  const stopRecording = async () => {
+    if (!recording) return;
+    
+    try {
+      console.log('🛑 Parando gravação...');
+      
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      setRecording(null);
+      setIsRecording(false);
+      setRecordedAudio(uri);
+      
+      console.log('✅ Gravação salva em:', uri);
+      
+      // Processar áudio gravado
+      if (uri) {
+        await processRecordedAudio(uri);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao parar gravação:', error);
+      Alert.alert('Erro', 'Erro ao processar gravação');
+    }
+  };
+
+  // FUNÇÃO PARA PROCESSAR ÁUDIO GRAVADO
+  const processRecordedAudio = async (audioUri) => {
+    console.log('🔄 Processando áudio gravado...');
+    
+    try {
+      // Verificar se temos configurações
+      if (!configData.hostnameAPI_TTS || !configData.portAPI) {
+        console.warn('⚠️ Configurações não carregadas, usando transcrição simulada');
+        const simulatedTranscription = "Mensagem de áudio transcrita (simulada)";
+        await createMessageFromTranscription(simulatedTranscription, true);
+        return;
+      }
+
+      // 1. Usar STT real para transcrever o áudio
+      const transcription = await handleSTT(audioUri, configData);
+      
+      // 2. Detectar idioma do texto transcrito
+      let detectedLanguage = null;
+      try {
+        detectedLanguage = await handleLanguageDetection(transcription, configData);
+        console.log('🌍 Idioma detectado:', detectedLanguage.name, `(${detectedLanguage.code})`);
+      } catch (langError) {
+        console.warn('⚠️ Erro na detecção de idioma:', langError);
+        // Continuar sem detecção de idioma
+      }
+      
+      // 3. Criar mensagem com informações adicionais
+      await createMessageFromTranscription(transcription, true, detectedLanguage);
+      
+    } catch (error) {
+      console.error('❌ Erro ao processar áudio:', error);
+      // Fallback para simulação em caso de erro
+      const fallbackTranscription = "Erro na transcrição - mensagem simulada";
+      await createMessageFromTranscription(fallbackTranscription, true);
+    }
+  };
+
+  // FUNÇÃO AUXILIAR - Criar mensagem a partir da transcrição
+  const createMessageFromTranscription = async (transcriptionText, isVoiceMessage = false, detectedLanguage = null) => {
+    const newMessage = {
+      id: Date.now(),
+      text: transcriptionText,
+      sender: "user",
+      timestamp: new Date(),
+      isVoiceMessage,
+      detectedLanguage: detectedLanguage ? {
+        code: detectedLanguage.code,
+        name: detectedLanguage.name
+      } : null
+    };
+    
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
+    
+    // Log informativo sobre o idioma detectado
+    if (detectedLanguage) {
+      console.log(`📝 Mensagem criada em ${detectedLanguage.name} (${detectedLanguage.code}): "${transcriptionText}"`);
+    }
+    
+    // Salvar e processar resposta da IA
+    await saveMessages(updatedMessages);
+    await processAIResponse(updatedMessages);
   };
 
   return (
@@ -213,29 +373,62 @@ export default function ChatRoom() {
                 <Text style={styles.typingText}>IA está digitando...</Text>
               </View>
             )}
+            {isTTSPlaying && (
+              <View style={styles.ttsIndicator}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.ttsText}>🔊 Reproduzindo resposta...</Text>
+              </View>
+            )}
           </>
         )}
       </View>
       
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Digite sua mensagem..."
-          multiline
-        />
-        <TouchableOpacity 
-          onPress={sendMessage} 
-          style={[styles.sendButton, isAiTyping && styles.sendButtonDisabled]}
-          disabled={isAiTyping}
-        >
-          {isAiTyping ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <MaterialIcons name="send" size={24} color="white" />
-          )}
-        </TouchableOpacity>
+        {isVoiceModeEnabled ? (
+          // MODO DE VOZ - Botão de gravação
+          <View style={styles.voiceInputContainer}>
+            <TouchableOpacity 
+              onPress={isRecording ? stopRecording : startRecording}
+              style={[
+                styles.recordButton, 
+                isRecording && styles.recordButtonActive,
+                isAiTyping && styles.recordButtonDisabled
+              ]}
+              disabled={isAiTyping}
+            >
+              {isRecording ? (
+                <MaterialIcons name="stop" size={32} color="white" />
+              ) : (
+                <MaterialIcons name="mic" size={32} color="white" />
+              )}
+            </TouchableOpacity>
+            <Text style={styles.recordingStatus}>
+              {isRecording ? 'Gravando... Toque para parar' : 'Toque para gravar'}
+            </Text>
+          </View>
+        ) : (
+          // MODO TEXTO - Input normal
+          <>
+            <TextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Digite sua mensagem..."
+              multiline
+            />
+            <TouchableOpacity 
+              onPress={sendMessage} 
+              style={[styles.sendButton, isAiTyping && styles.sendButtonDisabled]}
+              disabled={isAiTyping}
+            >
+              {isAiTyping ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <MaterialIcons name="send" size={24} color="white" />
+              )}
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   )
@@ -307,6 +500,31 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
+  voiceInputContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  recordButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recordButtonActive: {
+    backgroundColor: '#FF3B30',
+  },
+  recordButtonDisabled: {
+    backgroundColor: '#cccccc',
+  },
+  recordingStatus: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
   textInput: {
     flex: 1,
     borderWidth: 1,
@@ -342,6 +560,22 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#666',
+    fontStyle: 'italic',
+  },
+  ttsIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: '#e6f3ff',
+    borderRadius: 15,
+    marginVertical: 5,
+    alignSelf: 'flex-start',
+  },
+  ttsText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#007AFF',
     fontStyle: 'italic',
   }
 })

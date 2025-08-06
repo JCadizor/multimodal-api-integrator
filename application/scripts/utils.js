@@ -14,7 +14,15 @@ export async function handleTTS(userInput, parsedData, setIsPlaying) {
   const TTSendPoint = apiConfigurations.text_to_speech.endpoint;
   const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${TTSendPoint}`;
   
+  // Usar voz selecionada nas configurações ou fallback para Jenny
+  const selectedVoice = parsedData.selectedVoice || 'en-US-JennyNeural';
+  
+  // Determinar idioma baseado na voz selecionada
+  const language = selectedVoice.startsWith('pt-') ? 'pt' : 'en';
+  
   console.log('TTS URL:', url);
+  console.log('🔊 Voz selecionada:', selectedVoice);
+  console.log('🌍 Idioma determinado:', language);
 
   try {
     const response = await fetch(url, {
@@ -22,8 +30,8 @@ export async function handleTTS(userInput, parsedData, setIsPlaying) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: userInput,
-        language: 'en',
-        voice: 'en-US-JennyNeural',
+        language: language,
+        voice: selectedVoice,
       }),
     });
 
@@ -50,12 +58,16 @@ export async function handleTTS(userInput, parsedData, setIsPlaying) {
       { shouldPlay: true }
     );
     
-    setIsPlaying(true);
+    if (setIsPlaying) {
+      setIsPlaying(true);
+    }
     console.log('🔊 Reproduzindo áudio...');
     
     sound.setOnPlaybackStatusUpdate((status) => {
       if (status.didJustFinish) {
-        setIsPlaying(false);
+        if (setIsPlaying) {
+          setIsPlaying(false);
+        }
         console.log('✅ Áudio reproduzido com sucesso!');
       }
     });
@@ -66,6 +78,95 @@ export async function handleTTS(userInput, parsedData, setIsPlaying) {
     console.error('❌ Erro durante TTS:', error);
     Alert.alert('Erro', 'Erro durante a comunicação com a API de TTS!');
     throw error; // Re-throw para permitir tratamento no componente
+  }
+}
+
+// STT - Speech to Text
+export async function handleSTT(audioUri, parsedData) {
+  console.log('🎤 Processando STT...');
+  
+  const apiConfigurations = api_configurations.Routes;
+  const STTendPoint = apiConfigurations.speech_to_text.endpoint;
+  const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${STTendPoint}`;
+  
+  console.log('STT URL:', url);
+
+  try {
+    // Preparar FormData
+    const formData = new FormData();
+    formData.append('language', 'pt'); // Português para o usuário
+    formData.append('model_size', 'base.en');
+    formData.append('file', {
+      uri: audioUri,
+      name: 'audio_recording.wav',
+      type: 'audio/wav',
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Erro da API: ${result.message || response.status}`);
+    }
+
+    console.log('📝 Resposta da STT:', result);
+
+    // Extrair texto transcrito
+    const transcript = result?.segments?.map(seg => seg.text.trim()).join(' ') || 'Sem conteúdo detectado.';
+    
+    console.log('✅ Texto transcrito:', transcript);
+    return transcript;
+
+  } catch (error) {
+    console.error('❌ Erro ao processar STT:', error);
+    Alert.alert('Erro', 'Erro ao enviar o áudio para transcrição.');
+    throw error;
+  }
+}
+
+// Language Detection
+export async function handleLanguageDetection(textInput, parsedData) {
+  console.log('🌍 Processando Language Detection...');
+  
+  const apiConfigurations = api_configurations.Routes;
+  const LDendPoint = apiConfigurations.laguage_detector.endpoint;
+  const url = `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${LDendPoint}`;
+  
+  console.log('LD URL:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: textInput }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`❌ HTTP error! status: ${response.status}`);
+    }
+
+    console.log('✅ Comunicação com a API bem sucedida!', response.status);
+    
+    const result = await response.json();
+    const languageCode = result.language;
+    const languageName = apiConfigurations.languageMap[languageCode] || languageCode;
+    
+    console.log('✅ Idioma detectado:', languageCode, '->', languageName);
+    
+    return {
+      code: languageCode,
+      name: languageName,
+      raw: result
+    };
+
+  } catch (error) {
+    console.error('❌ Erro durante Language Detection:', error);
+    Alert.alert('Erro', 'Erro durante a detecção de idioma!');
+    throw error;
   }
 }
 

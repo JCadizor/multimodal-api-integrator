@@ -3,7 +3,9 @@ import { View, Text, TextInput, Button, StyleSheet, ScrollView, Image, Touchable
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage' //https://react-native-async-storage.github.io/async-storage/docs/usage/
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
+import api_configurations from '../../constants/api_configurations.json';
 
 
 export default function SettingsScreen() {
@@ -22,6 +24,7 @@ const [authName, setAuthName] = useState('');
 const [authPassword, setAuthPassword] = useState('');
 const [profileImage, setProfileImage] = useState(null);
 const [debugMode, setDebugMode] = useState(false); // State to control debug mode visibility
+const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural'); // Default voice
 
 const toggleSwitch = async (value) => {
   
@@ -32,6 +35,56 @@ const toggleSwitch = async (value) => {
   } catch (error) {
     console.error("❌ Erro ao guardar estado de debug!", error);
   }
+};
+
+// FUNÇÃO PARA GERAR OPÇÕES DE VOZ
+const generateVoiceOptions = () => {
+  const voiceOptions = [];
+  const voiceConfig = api_configurations.Routes.voice;
+  
+  // English Adults
+  if (voiceConfig.english_adutls) {
+    Object.keys(voiceConfig.english_adutls).forEach(country => {
+      Object.keys(voiceConfig.english_adutls[country]).forEach(name => {
+        const voiceId = voiceConfig.english_adutls[country][name];
+        voiceOptions.push({
+          label: `🇺🇸 English (${country}) - ${name}`,
+          value: voiceId,
+          category: 'English Adults'
+        });
+      });
+    });
+  }
+  
+  // English Children
+  if (voiceConfig.english_children) {
+    Object.keys(voiceConfig.english_children).forEach(country => {
+      Object.keys(voiceConfig.english_children[country]).forEach(name => {
+        const voiceId = voiceConfig.english_children[country][name];
+        voiceOptions.push({
+          label: `👶 English (${country}) - ${name}`,
+          value: voiceId,
+          category: 'English Children'
+        });
+      });
+    });
+  }
+  
+  // Portuguese Adults
+  if (voiceConfig.portuguese_adutls) {
+    Object.keys(voiceConfig.portuguese_adutls).forEach(country => {
+      Object.keys(voiceConfig.portuguese_adutls[country]).forEach(name => {
+        const voiceId = voiceConfig.portuguese_adutls[country][name];
+        voiceOptions.push({
+          label: `🇵🇹 Portuguese (${country}) - ${name}`,
+          value: voiceId,
+          category: 'Portuguese Adults'
+        });
+      });
+    });
+  }
+  
+  return voiceOptions;
 };
 
 
@@ -57,6 +110,8 @@ const  initializeConfigValues = async ()=> {
       setAuthPassword(parsedData.authPassword || '');
 
       setProfileImage(parsedData.profileImage || null);
+      setSelectedVoice(parsedData.selectedVoice || 'en-US-JennyNeural'); // Load selected voice
+      
       console.log('📦 Dados carregados com sucesso!');
       console.log('Nome: ' + parsedData.name);
       console.log('Email: ' + parsedData.email);
@@ -85,10 +140,12 @@ const saveSettings = async () => {
       authName,
       authPassword,
       profileImage,
+      selectedVoice, // Save selected voice
     };
 
     await AsyncStorage.setItem('userSettings', JSON.stringify(userData));
     Alert.alert('Sucesso', 'Configurações salvas!');
+    console.log('🔊 Voz selecionada salva:', selectedVoice);
   } catch (error) {
     console.error("❌ Erro ao guardar os dados!", error);
   }
@@ -249,6 +306,37 @@ const pickImage = async () => {
                 </View>
 
               </View>
+              
+              <View style={styles.container}>
+                <Text style={{fontSize: 20}}>Configurações de Voz</Text>
+                <Text>Selecione a voz para Text-to-Speech</Text>
+                
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Voz Selecionada:</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={selectedVoice}
+                      onValueChange={(itemValue) => setSelectedVoice(itemValue)}
+                      style={styles.picker}
+                    >
+                      {generateVoiceOptions().map((option, index) => (
+                        <Picker.Item 
+                          key={index}
+                          label={option.label} 
+                          value={option.value} 
+                        />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+                
+                <View style={styles.selectedVoiceInfo}>
+                  <Text style={styles.selectedVoiceText}>
+                    🔊 Voz Atual: {selectedVoice}
+                  </Text>
+                </View>
+              </View>
+              
               <View style={styles.container}>
                 <Text style={{fontSize: 20}}>Debug Mode</Text>
                 <Text>Ativar/desativar o modo de depuração</Text>
@@ -295,5 +383,36 @@ const styles = StyleSheet.create({
   },
   buttonSpace: {
     padding: 10,
+  },
+  pickerContainer: {
+    width: '100%',
+    marginVertical: 15,
+  },
+  pickerLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  selectedVoiceInfo: {
+    backgroundColor: '#e6f3ff',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  selectedVoiceText: {
+    fontSize: 14,
+    color: '#007AFF',
+    textAlign: 'center',
   }
 });
