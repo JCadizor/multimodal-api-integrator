@@ -50,7 +50,7 @@ const generateVoiceOptions = () => {
       Object.keys(voiceConfig.english_adutls[country]).forEach(name => {
         const voiceId = voiceConfig.english_adutls[country][name];
         voiceOptions.push({
-          label: `🇺🇸 English (${country}) - ${name}`,
+          label: `English (${country}) - ${name}`,
           value: voiceId,
           category: 'English Adults'
         });
@@ -64,7 +64,7 @@ const generateVoiceOptions = () => {
       Object.keys(voiceConfig.english_children[country]).forEach(name => {
         const voiceId = voiceConfig.english_children[country][name];
         voiceOptions.push({
-          label: `👶 English (${country}) - ${name}`,
+          label: `English Children (${country}) - ${name}`,
           value: voiceId,
           category: 'English Children'
         });
@@ -78,7 +78,7 @@ const generateVoiceOptions = () => {
       Object.keys(voiceConfig.portuguese_adutls[country]).forEach(name => {
         const voiceId = voiceConfig.portuguese_adutls[country][name];
         voiceOptions.push({
-          label: `🇵🇹 Portuguese (${country}) - ${name}`,
+          label: `Portuguese (${country}) - ${name}`,
           value: voiceId,
           category: 'Portuguese Adults'
         });
@@ -116,7 +116,7 @@ const generateLanguageOptions = () => {
   commonLanguages.forEach(langCode => {
     if (languageMap[langCode]) {
       languageOptions.push({
-        label: `${getLanguageFlag(langCode)} ${languageMap[langCode]} (${langCode})`,
+        label: `${languageMap[langCode]} (${langCode})`,
         value: langCode
       });
     }
@@ -126,41 +126,13 @@ const generateLanguageOptions = () => {
   Object.keys(languageMap).forEach(langCode => {
     if (!commonLanguages.includes(langCode)) {
       languageOptions.push({
-        label: `🌍 ${languageMap[langCode]} (${langCode})`,
+        label: `${languageMap[langCode]} (${langCode})`,
         value: langCode
       });
     }
   });
   
   return languageOptions;
-};
-
-// FUNÇÃO PARA OBTER FLAG DO IDIOMA
-const getLanguageFlag = (languageCode) => {
-  const flags = {
-    'pt': '🇵🇹',
-    'en': '🇺🇸',
-    'es': '🇪🇸',
-    'fr': '🇫🇷',
-    'de': '🇩🇪',
-    'it': '🇮🇹',
-    'nl': '🇳🇱',
-    'pl': '🇵🇱',
-    'sv': '🇸🇪',
-    'da': '🇩🇰',
-    'fi': '🇫🇮',
-    'bg': '🇧🇬',
-    'cs': '🇨🇿',
-    'el': '🇬🇷',
-    'et': '🇪🇪',
-    'hu': '🇭🇺',
-    'lt': '🇱🇹',
-    'lv': '🇱🇻',
-    'ro': '🇷🇴',
-    'sk': '🇸🇰',
-    'sl': '🇸🇮'
-  };
-  return flags[languageCode] || '🌍';
 };
 
 
@@ -190,14 +162,12 @@ const  initializeConfigValues = async ()=> {
       setSelectedSTTModel(parsedData.selectedSTTModel || 'base'); // Load selected STT model
       setDefaultLanguage(parsedData.defaultLanguage || 'pt'); // Load default language
       
-      console.log('📦 Dados carregados com sucesso!');
-      console.log('Nome: ' + parsedData.name);
-      console.log('Email: ' + parsedData.email);
-      console.log('Hostname API: ' + parsedData.hostnameAPI_TTS);
-      console.log('Porta API: ' + parsedData.portAPI);
-      console.log('Hostname MQTT: ' + parsedData.hostnameMQTT);
-
-    }
+    console.log('Dados carregados com sucesso!');
+    console.log('Nome: ' + parsedData.name);
+    console.log('Email: ' + parsedData.email);
+    console.log('Hostname API: ' + parsedData.hostnameAPI_TTS);
+    console.log('Porta API: ' + parsedData.portAPI);
+    console.log('Hostname MQTT: ' + parsedData.hostnameMQTT);    }
   } catch (error) {
     console.error("❌ Erro ao carregar os dados!", error);
   }
@@ -225,9 +195,9 @@ const saveSettings = async () => {
 
     await AsyncStorage.setItem('userSettings', JSON.stringify(userData));
     Alert.alert('Sucesso', 'Configurações salvas!');
-    console.log('🔊 Voz selecionada salva:', selectedVoice);
-    console.log('🎤 Modelo STT selecionado salvo:', selectedSTTModel);
-    console.log('🌍 Idioma padrão salvo:', defaultLanguage);
+    console.log('Voz selecionada salva:', selectedVoice);
+    console.log('Modelo STT selecionado salvo:', selectedSTTModel);
+    console.log('Idioma padrão salvo:', defaultLanguage);
   } catch (error) {
     console.error("❌ Erro ao guardar os dados!", error);
   }
@@ -241,10 +211,10 @@ const saveSettings = async () => {
         setPassword(password);
         setProfileImage(profileImage);
         saveSettings();
-        console.log('💾 Configurações do user salvas!');
+        console.log('Configurações do usuário salvas!');
     }
     catch (error) {
-        console.error("❌ Erro ao guardar dados do user!",error);
+        console.error("Erro ao salvar dados do usuário!",error);
     }
   };
 
@@ -257,7 +227,7 @@ const saveSettings = async () => {
         setHostnameMQTT(hostnameMQTT);
         setPortMQTT(portMQTT);
         saveSettings();
-        console.log('💾Configurações de conexão salvas!');
+        console.log('Configurações de conexão salvas!');
         console.log('Hostname API:' + hostnameAPI_TTS);
         console.log('Port API:' + portAPI);
         console.log('Hostname MQTT:' + hostnameMQTT);
@@ -265,7 +235,7 @@ const saveSettings = async () => {
         console.log('Auth Name:' + authName);
     }
     catch (error) {
-        console.error("❌ Erro ao guardar dados de conexão!",error);
+        console.error("Erro ao salvar dados de conexão!",error);
     }
   };
 
@@ -276,10 +246,10 @@ const saveSettings = async () => {
         setAuthName(authName);
         setAuthPassword(authPassword);
         saveSettings();
-        console.log('💾 Dados de autenticação salvos!');
+        console.log('Dados de autenticação salvos!');
     }
     catch (error) {
-        console.error("❌ Erro ao guardar dados de autenticação!",error);
+        console.error("Erro ao salvar dados de autenticação!",error);
     }   
   };
 
@@ -297,9 +267,9 @@ const pickImage = async () => {
     // Salvar a imagem no armazenamento local (opcional)
     try {
       saveSettings();
-      console.log('💾 configurações de perfil salvas!');
+      console.log('Configurações de perfil salvas!');
     } catch (error) {
-      console.error("❌ Erro ao guardar onfigurações de perfil!", error);
+      console.error("Erro ao salvar configurações de perfil!", error);
     }
   }
 };
@@ -320,7 +290,7 @@ const pickImage = async () => {
       <SafeAreaProvider>
         <SafeAreaView>
           <View style={styles.container}>
-            <Text style={{fontSize: 20}}>Configurações do usuário</Text>
+            <Text style={{fontSize: 20}}>Configurações do Usuário</Text>
 
               {/* Seção da Imagem de Perfil */}
               <TouchableOpacity onPress={pickImage}>
@@ -344,13 +314,13 @@ const pickImage = async () => {
               <TextInput placeholder="Senha" placeholderTextColor={'grey'} value={password} onChangeText={setPassword} secureTextEntry />
             </View>
             <View style={styles.buttonSpace}> 
-            <Button title="Salvar Conf. do usuário" onPress={ saveUserSettings} />
+            <Button title="Salvar Configurações" onPress={ saveUserSettings} />
             </View>
              
           </View>
           
           <View style={styles.container}>
-            <Text style={{fontSize: 20}} >Configurações da aplicação</Text>
+            <Text style={{fontSize: 20}} >Configurações da Aplicação</Text>
               <View>
 
                 <Text>Endpoint das APIs de TTS, STT</Text>
@@ -371,7 +341,7 @@ const pickImage = async () => {
                   <TextInput placeholder="Porta" placeholderTextColor={'grey'} value={portMQTT} onChangeText={setPortMQTT}/>
                 </View>
                 <View style={styles.buttonSpace}> 
-                  <Button title="Salvar Conf. da conexão" onPress={ saveConnectionSettings} />
+                  <Button title="Salvar Configurações de Conexão" onPress={ saveConnectionSettings} />
                 </View>
               </View>
           </View>
@@ -384,7 +354,7 @@ const pickImage = async () => {
                   <TextInput placeholder="password" placeholderTextColor={'grey'} value={authPassword} onChangeText={setAuthPassword}/>
                 </View>
                 <View style={styles.buttonSpace}> 
-                  <Button title="Salvar dados de autenticação" onPress={ async () => saveAuthData()} />
+                  <Button title="Salvar Dados de Autenticação" onPress={ async () => saveAuthData()} />
                 </View>
 
               </View>
@@ -394,7 +364,7 @@ const pickImage = async () => {
                 <Text>Selecione a voz para Text-to-Speech</Text>
                 
                 <View style={styles.pickerContainer}>
-                  <Text style={styles.pickerLabel}>Voz Selecionada:</Text>
+                  <Text style={styles.pickerLabel}>Voz:</Text>
                   <View style={styles.pickerWrapper}>
                     <Picker
                       selectedValue={selectedVoice}
@@ -414,7 +384,7 @@ const pickImage = async () => {
                 
                 <View style={styles.selectedVoiceInfo}>
                   <Text style={styles.selectedVoiceText}>
-                    🔊 Voz Atual: {selectedVoice}
+                    Voz Atual: {selectedVoice}
                   </Text>
                 </View>
               </View>
@@ -424,7 +394,7 @@ const pickImage = async () => {
                 <Text>Selecione o modelo para Speech-to-Text</Text>
                 
                 <View style={styles.pickerContainer}>
-                  <Text style={styles.pickerLabel}>Modelo STT Selecionado:</Text>
+                  <Text style={styles.pickerLabel}>Modelo STT:</Text>
                   <View style={styles.pickerWrapper}>
                     <Picker
                       selectedValue={selectedSTTModel}
@@ -444,17 +414,17 @@ const pickImage = async () => {
                 
                 <View style={styles.selectedVoiceInfo}>
                   <Text style={styles.selectedVoiceText}>
-                    🎤 Modelo STT Atual: {selectedSTTModel}
+                    Modelo STT Atual: {selectedSTTModel}
                   </Text>
                 </View>
               </View>
               
               <View style={styles.container}>
                 <Text style={{fontSize: 20}}>Idioma Padrão</Text>
-                <Text>Selecione o idioma padrão para transcrição quando a detecção automática falhar</Text>
+                <Text>Idioma padrão para transcrição quando a detecção automática falhar</Text>
                 
                 <View style={styles.pickerContainer}>
-                  <Text style={styles.pickerLabel}>Idioma Padrão Selecionado:</Text>
+                  <Text style={styles.pickerLabel}>Idioma Padrão:</Text>
                   <View style={styles.pickerWrapper}>
                     <Picker
                       selectedValue={defaultLanguage}
@@ -474,13 +444,13 @@ const pickImage = async () => {
                 
                 <View style={styles.selectedVoiceInfo}>
                   <Text style={styles.selectedVoiceText}>
-                    🌍 Idioma Padrão Atual: {defaultLanguage}
+                    Idioma Atual: {defaultLanguage}
                   </Text>
                 </View>
               </View>
               
               <View style={styles.container}>
-                <Text style={{fontSize: 20}}>Debug Mode</Text>
+                <Text style={{fontSize: 20}}>Modo Debug</Text>
                 <Text>Ativar/desativar o modo de depuração</Text>
                     <Switch
                       scaleX = {1.5}
