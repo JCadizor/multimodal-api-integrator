@@ -164,6 +164,9 @@ export default function MessageList({ messages = [], configData = {} }) {
             message.sender === 'user' ? styles.userText : styles.aiText
           ]}>
             {message.text}
+            {message.isStreaming && (
+              <Text style={styles.streamingIndicator}> ▊</Text>
+            )}
           </Text>
 
           {/* BOTÃO DE PLAYBACK PARA MENSAGENS COM ÁUDIO */}
@@ -307,6 +310,11 @@ const styles = StyleSheet.create({
   },
   playbackTextAi: {
     color: '#007AFF',
+  },
+  streamingIndicator: {
+    color: '#007AFF',
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   timestamp: {
     fontSize: 12,

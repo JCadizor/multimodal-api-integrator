@@ -12,6 +12,7 @@ import {
   handleLanguageDetection, 
   retrieveAsyncStorageDataAsJson 
 } from '../../scripts/utils';
+import { startTextToTextStream } from '../../scripts/handleComunication';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
 
@@ -152,40 +153,119 @@ export default function ChatRoom() {
     console.log('📝 Processando resposta da IA...');
     console.log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
     
-    // Simular resposta da IA após um delay
-    setTimeout(async () => {
+    try {
+      // Preparar mensagens para a API (formato esperado pela API)
+      const lastUserMessage = currentMessages[currentMessages.length - 1];
+      const prompt = lastUserMessage.text;
+      
+      // Converter histórico de mensagens para formato da API
+      const apiMessages = currentMessages
+        .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?") // Filtrar mensagem inicial
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }));
+
+      console.log('📡 Enviando para API:', { prompt, messages: apiMessages });
+
+      // Criar mensagem inicial da IA (vazia, será preenchida com streaming)
       const aiResponse = {
-        id: Date.now() + 1, // ID único para resposta da IA
-        text: "Obrigado pela sua mensagem! Como posso ajudá-lo?",
+        id: Date.now() + 1,
+        text: "",
+        sender: "ai",
+        timestamp: new Date(),
+        isStreaming: true
+      };
+      
+      let tempMessages = [...currentMessages, aiResponse];
+      setMessages(tempMessages);
+      await saveMessages(tempMessages);
+
+      // Função para processar dados recebidos do stream
+      const onData = (content) => {
+        aiResponse.text += content;
+        tempMessages = [...currentMessages, { ...aiResponse }];
+        setMessages(tempMessages);
+      };
+
+      // Função chamada quando o stream termina
+      const onDone = async () => {
+        console.log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
+        
+        // Marcar como não-streaming e salvar mensagem final
+        aiResponse.isStreaming = false;
+        const finalMessages = [...currentMessages, aiResponse];
+        setMessages(finalMessages);
+        await saveMessages(finalMessages);
+
+        // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
+        if (isVoiceModeEnabled && aiResponse.text.trim()) {
+          console.log('🔊 Modo de voz ativo - Executando TTS...');
+          try {
+            if (configData.hostnameAPI_TTS && configData.portAPI) {
+              await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
+            } else {
+              console.warn('⚠️ Configurações não disponíveis para TTS');
+              Alert.alert('Aviso', 'Configurações de TTS não disponíveis');
+            }
+          } catch (error) {
+            console.error('❌ Erro no TTS:', error);
+            Alert.alert('Erro', 'Erro ao reproduzir resposta em áudio');
+          }
+        }
+
+        // REMOVER INDICADOR DE PROCESSAMENTO
+        setIsAiTyping(false);
+      };
+
+      // Função para tratar erros
+      const onError = (error) => {
+        console.error('❌ Erro na API de Text to Text:', error);
+        
+        // Criar resposta de erro
+        const errorResponse = {
+          id: Date.now() + 1,
+          text: "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.",
+          sender: "ai",
+          timestamp: new Date(),
+          isError: true
+        };
+        
+        const errorMessages = [...currentMessages, errorResponse];
+        setMessages(errorMessages);
+        saveMessages(errorMessages);
+        setIsAiTyping(false);
+        
+        Alert.alert('Erro', 'Falha ao conectar com a IA. Verifique sua conexão e configurações.');
+      };
+
+      // Iniciar stream da API
+      await startTextToTextStream({
+        prompt,
+        messages: apiMessages,
+        onData,
+        onDone,
+        onError
+      });
+
+    } catch (error) {
+      console.error('❌ Erro geral no processamento da IA:', error);
+      
+      // Resposta de fallback em caso de erro
+      const fallbackResponse = {
+        id: Date.now() + 1,
+        text: "Desculpe, não foi possível processar sua mensagem no momento.",
         sender: "ai",
         timestamp: new Date()
       };
-      const finalMessages = [...currentMessages, aiResponse];
-      setMessages(finalMessages);
       
-      // PERSISTÊNCIA DA RESPOSTA IA - Salva resposta da IA também
-      await saveMessages(finalMessages);
-      
-      // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
-      if (isVoiceModeEnabled) {
-        console.log('🔊 Modo de voz ativo - Executando TTS...');
-        try {
-          // Verificar se temos configurações
-          if (configData.hostnameAPI_TTS && configData.portAPI) {
-            await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
-          } else {
-            console.warn('⚠️ Configurações não disponíveis para TTS');
-            Alert.alert('Aviso', 'Configurações de TTS não disponíveis');
-          }
-        } catch (error) {
-          console.error('❌ Erro no TTS:', error);
-          Alert.alert('Erro', 'Erro ao reproduzir resposta em áudio');
-        }
-      }
-      
-      // REMOVER INDICADOR DE PROCESSAMENTO
+      const fallbackMessages = [...currentMessages, fallbackResponse];
+      setMessages(fallbackMessages);
+      await saveMessages(fallbackMessages);
       setIsAiTyping(false);
-    }, 2000);
+      
+      Alert.alert('Erro', 'Erro inesperado. Tente novamente.');
+    }
   };
 
   // FUNÇÃO UTILITÁRIA - Limpar conversa (opcional)
