@@ -324,7 +324,7 @@ export default function ChatRoom() {
     console.log('🔊 Modo de voz:', newMode ? 'ATIVADO' : 'DESATIVADO');
   };
 
-  // FUNÇÃO PARA INICIAR GRAVAÇÃO
+  // FUNÇÃO PARA INICIAR GRAVAÇÃO DE VOZ
   const startRecording = async () => {
     try {
       console.log('🎤 Iniciando gravação...');
