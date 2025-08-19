@@ -288,9 +288,9 @@ const pickImage = async () => {
     
     <ScrollView >
       <SafeAreaProvider>
-        <SafeAreaView>
+        <SafeAreaView >
           <View style={styles.container}>
-            <Text style={{fontSize: 20}}>Configurações do Usuário</Text>
+            <Text style={styles.sectionTitle}>Configurações do Usuário</Text>
 
               {/* Seção da Imagem de Perfil */}
               <TouchableOpacity onPress={pickImage}>
@@ -314,16 +314,18 @@ const pickImage = async () => {
               <TextInput placeholder="Senha" placeholderTextColor={'grey'} value={password} onChangeText={setPassword} secureTextEntry />
             </View>
             <View style={styles.buttonSpace}> 
-            <Button title="Salvar Configurações" onPress={ saveUserSettings} />
+            <TouchableOpacity style={styles.customButton} onPress={saveUserSettings}>
+              <Text style={styles.customButtonText}>Salvar Configurações</Text>
+            </TouchableOpacity>
             </View>
              
           </View>
           
           <View style={styles.container}>
-            <Text style={{fontSize: 20}} >Configurações da Aplicação</Text>
+            <Text style={styles.sectionTitle}>Configurações da Aplicação</Text>
               <View>
 
-                <Text>Endpoint das APIs de TTS, STT</Text>
+                <Text style={styles.sectionDescription}>Endpoint das APIs de TTS, STT</Text>
                 <View style={styles.inputField}>
                   <TextInput placeholder="Hostname" placeholderTextColor={'grey'} value={hostnameAPI_TTS} onChangeText={setHostnameAPI_TTS}/>
                 </View>
@@ -332,7 +334,7 @@ const pickImage = async () => {
                 </View>
 
 
-                <Text>Endpoint MQTT</Text>
+                <Text style={styles.sectionDescription}>Endpoint MQTT</Text>
                 <View style={styles.inputField}>
                   <TextInput placeholder="Hostname" placeholderTextColor={'grey'} value={hostnameMQTT} onChangeText={setHostnameMQTT}/>
                 </View>
@@ -341,12 +343,14 @@ const pickImage = async () => {
                   <TextInput placeholder="Porta" placeholderTextColor={'grey'} value={portMQTT} onChangeText={setPortMQTT}/>
                 </View>
                 <View style={styles.buttonSpace}> 
-                  <Button title="Salvar Configurações de Conexão" onPress={ saveConnectionSettings} />
+                  <TouchableOpacity style={styles.customButton} onPress={saveConnectionSettings}>
+                    <Text style={styles.customButtonText}>Salvar Configurações de Conexão</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
           </View>
               <View style={styles.container}>             
-                <Text>Dados de autenticação</Text>
+                <Text style={styles.sectionDescription}>Dados de autenticação</Text>
                 <View style={styles.inputField}>
                   <TextInput placeholder="username" placeholderTextColor={'grey'} value={authName} onChangeText={setAuthName}/>
                 </View>
@@ -354,14 +358,16 @@ const pickImage = async () => {
                   <TextInput placeholder="password" placeholderTextColor={'grey'} value={authPassword} onChangeText={setAuthPassword}/>
                 </View>
                 <View style={styles.buttonSpace}> 
-                  <Button title="Salvar Dados de Autenticação" onPress={ async () => saveAuthData()} />
+                  <TouchableOpacity style={styles.customButton} onPress={async () => saveAuthData()}>
+                    <Text style={styles.customButtonText}>Salvar Dados de Autenticação</Text>
+                  </TouchableOpacity>
                 </View>
 
               </View>
               
               <View style={styles.container}>
-                <Text style={{fontSize: 20}}>Configurações de Voz</Text>
-                <Text>Selecione a voz para Text-to-Speech</Text>
+                <Text style={styles.sectionTitle}>Configurações de Voz</Text>
+                <Text style={styles.sectionDescription}>Selecione a voz para Text-to-Speech</Text>
                 
                 <View style={styles.pickerContainer}>
                   <Text style={styles.pickerLabel}>Voz:</Text>
@@ -390,8 +396,8 @@ const pickImage = async () => {
               </View>
               
               <View style={styles.container}>
-                <Text style={{fontSize: 20}}>Configurações de STT</Text>
-                <Text>Selecione o modelo para Speech-to-Text</Text>
+                <Text style={styles.sectionTitle}>Configurações de STT</Text>
+                <Text style={styles.sectionDescription}>Selecione o modelo para Speech-to-Text</Text>
                 
                 <View style={styles.pickerContainer}>
                   <Text style={styles.pickerLabel}>Modelo STT:</Text>
@@ -420,8 +426,8 @@ const pickImage = async () => {
               </View>
               
               <View style={styles.container}>
-                <Text style={{fontSize: 20}}>Idioma Padrão</Text>
-                <Text>Idioma padrão para transcrição quando a detecção automática falhar</Text>
+                <Text style={styles.sectionTitle}>Idioma Padrão</Text>
+                <Text style={styles.sectionDescription}>Idioma padrão para transcrição quando a detecção automática falhar</Text>
                 
                 <View style={styles.pickerContainer}>
                   <Text style={styles.pickerLabel}>Idioma Padrão:</Text>
@@ -450,8 +456,8 @@ const pickImage = async () => {
               </View>
               
               <View style={styles.container}>
-                <Text style={{fontSize: 20}}>Modo Debug</Text>
-                <Text>Ativar/desativar o modo de depuração</Text>
+                <Text style={styles.sectionTitle}>Modo Debug</Text>
+                <Text style={styles.sectionDescription}>Ativar/desativar o modo de depuração</Text>
                     <Switch
                       scaleX = {1.5}
                       scaleY = {1.5}
@@ -476,41 +482,83 @@ const pickImage = async () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
     backgroundColor: 'white',
     margin: 10, 
     borderRadius: 10,
+    minHeight: 'auto',
+    flexShrink: 1,
+    // Garantir que todos os cantos sejam consistentemente arredondados
+    overflow: 'hidden',
   },
-  image:
-  {
-    alignContent:'center',width: 100, height: 100, borderRadius: 50, marginBottom: 10
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15,
+    color: '#333',
+    width: '100%',
+    flexWrap: 'wrap',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#666',
+    width: '100%',
+    maxWidth: 300,
+    flexWrap: 'wrap',
+    lineHeight: 20,
+  },
+  image: {
+    alignContent: 'center',
+    width: 100, 
+    height: 100, 
+    borderRadius: 50, 
+    marginBottom: 10,
+    // Garantir que a imagem mantenha o formato circular
+    overflow: 'hidden',
   },
   inputField: {
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'black',
+    width: '100%',
+    maxWidth: 300,
+    borderRadius: 10,
+    backgroundColor: '#f9f9f9',
+    marginVertical: 5,
   },
   buttonSpace: {
     padding: 10,
+    width: '100%',
+    maxWidth: 300,
+    borderRadius: 10,
+    marginVertical: 5,
   },
   pickerContainer: {
     width: '100%',
+    maxWidth: 300,
     marginVertical: 15,
+    borderRadius: 10,
   },
   pickerLabel: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#333',
+    textAlign: 'left',
+    flexWrap: 'wrap',
   },
   pickerWrapper: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: '#f9f9f9',
+    width: '100%',
   },
   picker: {
     height: 50,
@@ -519,12 +567,30 @@ const styles = StyleSheet.create({
   selectedVoiceInfo: {
     backgroundColor: '#e6f3ff',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     marginTop: 10,
+    width: '100%',
+    maxWidth: 300,
   },
   selectedVoiceText: {
     fontSize: 14,
     color: '#007AFF',
     textAlign: 'center',
+    flexWrap: 'wrap',
+  },
+  customButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginVertical: 5,
+  },
+  customButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   }
 });
