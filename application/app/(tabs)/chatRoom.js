@@ -500,7 +500,7 @@ export default function ChatRoom() {
             {isAiTyping && (
               <View style={styles.typingIndicator}>
                 <ActivityIndicator size="small" color="#666" />
-                <Text style={styles.typingText}>IA está digitando...</Text>
+                <Text style={styles.typingText}>IA está a escrever...</Text>
               </View>
             )}
             {isTTSPlaying && (
