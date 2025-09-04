@@ -27,6 +27,8 @@ const [debugMode, setDebugMode] = useState(false); // State to control debug mod
 const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural'); // Default voice
 const [selectedSTTModel, setSelectedSTTModel] = useState('base'); // Default STT model
 const [defaultLanguage, setDefaultLanguage] = useState('pt'); // Default language
+const [attendanceApiKey, setAttendanceApiKey] = useState('desenvolvimento_key_123'); // API Key da Assiduidade
+const [attendanceBaseUrl, setAttendanceBaseUrl] = useState('https://flask-attendance-api-ymvx.onrender.com'); // URL da API de Assiduidade
 
 const toggleSwitch = async (value) => {
   
@@ -161,13 +163,18 @@ const  initializeConfigValues = async ()=> {
       setSelectedVoice(parsedData.selectedVoice || 'en-US-JennyNeural'); // Load selected voice
       setSelectedSTTModel(parsedData.selectedSTTModel || 'base'); // Load selected STT model
       setDefaultLanguage(parsedData.defaultLanguage || 'pt'); // Load default language
+      setAttendanceApiKey(parsedData.attendanceApiKey || 'desenvolvimento_key_123'); // Load attendance API key
+      setAttendanceBaseUrl(parsedData.attendanceBaseUrl || 'https://flask-attendance-api-ymvx.onrender.com'); // Load attendance base URL
       
     console.log('Dados carregados com sucesso!');
     console.log('Nome: ' + parsedData.name);
     console.log('Email: ' + parsedData.email);
     console.log('Hostname API: ' + parsedData.hostnameAPI_TTS);
     console.log('Porta API: ' + parsedData.portAPI);
-    console.log('Hostname MQTT: ' + parsedData.hostnameMQTT);    }
+    console.log('Hostname MQTT: ' + parsedData.hostnameMQTT);
+    console.log('API Key Assiduidade: ' + parsedData.attendanceApiKey);
+    console.log('URL API Assiduidade: ' + parsedData.attendanceBaseUrl);
+    }
   } catch (error) {
     console.error("❌ Erro ao carregar os dados!", error);
   }
@@ -191,6 +198,8 @@ const saveSettings = async () => {
       selectedVoice, // Save selected voice
       selectedSTTModel, // Save selected STT model
       defaultLanguage, // Save default language
+      attendanceApiKey, // Save attendance API key
+      attendanceBaseUrl, // Save attendance base URL
     };
 
     await AsyncStorage.setItem('userSettings', JSON.stringify(userData));
@@ -198,6 +207,8 @@ const saveSettings = async () => {
     console.log('Voz selecionada salva:', selectedVoice);
     console.log('Modelo STT selecionado salvo:', selectedSTTModel);
     console.log('Idioma padrão salvo:', defaultLanguage);
+    console.log('API Key Assiduidade salva:', attendanceApiKey);
+    console.log('URL API Assiduidade salva:', attendanceBaseUrl);
   } catch (error) {
     console.error("❌ Erro ao guardar os dados!", error);
   }
@@ -452,6 +463,36 @@ const pickImage = async () => {
                   <Text style={styles.selectedVoiceText}>
                     Idioma Atual: {defaultLanguage}
                   </Text>
+                </View>
+              </View>
+              
+              <View style={styles.container}>
+                <Text style={styles.sectionTitle}>API de Assiduidade</Text>
+                <Text style={styles.sectionDescription}>Configurações para consulta de dados de assiduidade</Text>
+                
+                <View style={styles.inputField}>
+                  <TextInput 
+                    placeholder="URL da API de Assiduidade" 
+                    placeholderTextColor={'grey'} 
+                    value={attendanceBaseUrl} 
+                    onChangeText={setAttendanceBaseUrl}
+                  />
+                </View>
+                
+                <View style={styles.inputField}>
+                  <TextInput 
+                    placeholder="API Key de Assiduidade" 
+                    placeholderTextColor={'grey'} 
+                    value={attendanceApiKey} 
+                    onChangeText={setAttendanceApiKey}
+                    secureTextEntry
+                  />
+                </View>
+                
+                <View style={styles.buttonSpace}>
+                  <TouchableOpacity style={styles.customButton} onPress={saveSettings}>
+                    <Text style={styles.customButtonText}>Salvar Configurações da API</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
               

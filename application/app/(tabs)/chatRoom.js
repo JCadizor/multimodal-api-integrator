@@ -13,6 +13,7 @@ import {
   retrieveAsyncStorageDataAsJson 
 } from '../../scripts/utils';
 import { startTextToTextStream } from '../../scripts/handleComunication';
+import attendanceAPI from '../../scripts/attendanceAPI';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
 
@@ -137,7 +138,7 @@ export default function ChatRoom() {
       setMessages(updatedMessages);
       setInputText('');
       
-      // PERSISTÊNCIA IMEDIATA - Salva após adicionar mensagem do usuário
+      // PERSISTÊNCIA IMEDIATA - Salva após adicionar mensagem do utilizador
       await saveMessages(updatedMessages);
       
       // Processar resposta da IA
@@ -154,24 +155,39 @@ export default function ChatRoom() {
     console.log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
     
     try {
-      // Preparar mensagens para a API (formato esperado pela API)
       const lastUserMessage = currentMessages[currentMessages.length - 1];
-      const prompt = lastUserMessage.text;
+      const userQuery = lastUserMessage.text;
       
-      // Converter histórico de mensagens para formato da API
-      const apiMessages = currentMessages
-        .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?") // Filtrar mensagem inicial
-        .map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text
-        }));
+      // VERIFICAR SE É UMA PERGUNTA SOBRE ASSIDUIDADE
+      const attendanceKeywords = ['assiduidade', 'entrou', 'entrada', 'colaborador', 'funcionário', 'trabalhador', 'hoje', 'histórico'];
+      const isAttendanceQuery = attendanceKeywords.some(keyword => 
+        userQuery.toLowerCase().includes(keyword)
+      );
 
-      console.log('📡 Enviando para API:', { prompt, messages: apiMessages });
+      if (isAttendanceQuery) {
+        console.log('🏢 Detectada pergunta sobre assiduidade, consultando API... gatilho =' + attendanceKeywords.find(keyword => userQuery.toLowerCase().includes(keyword)));
+        await processAttendanceQuery(currentMessages, userQuery);
+        return;
+      }
 
-      // Criar mensagem inicial da IA (vazia, será preenchida com streaming)
+      // PROCESSAMENTO NORMAL COM API DE CHAT
+      await processNormalChatResponse(currentMessages);
+
+    } catch (error) {
+      console.error('❌ Erro geral no processamento da IA:', error);
+      await createErrorResponse(currentMessages, 'Erro inesperado. Tente novamente.');
+    }
+  };
+
+  // NOVA FUNÇÃO PARA PROCESSAR QUERIES DE ASSIDUIDADE
+  const processAttendanceQuery = async (currentMessages, userQuery) => {
+    try {
+      console.log('🏢 Processando query de assiduidade:', userQuery);
+      
+      // Criar mensagem inicial da IA
       const aiResponse = {
         id: Date.now() + 1,
-        text: "",
+        text: "Consultando dados de assiduidade...",
         sender: "ai",
         timestamp: new Date(),
         isStreaming: true
@@ -179,93 +195,153 @@ export default function ChatRoom() {
       
       let tempMessages = [...currentMessages, aiResponse];
       setMessages(tempMessages);
-      await saveMessages(tempMessages);
 
-      // Função para processar dados recebidos do stream
-      const onData = (content) => {
-        aiResponse.text += content;
-        tempMessages = [...currentMessages, { ...aiResponse }];
-        setMessages(tempMessages);
-      };
+      // Processar query com a API de assiduidade
+      console.log('[chatRoom.js] processAttendanceQuery -> chamar função processNaturalQuery com:', userQuery);
+      const result = await attendanceAPI.processNaturalQuery(userQuery);
+      
+      let responseText;
+      let queryType = 'general';
 
-      // Função chamada quando o stream termina
-      const onDone = async () => {
-        console.log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
-        
-        // Marcar como não-streaming e salvar mensagem final
-        aiResponse.isStreaming = false;
-        const finalMessages = [...currentMessages, aiResponse];
-        setMessages(finalMessages);
-        await saveMessages(finalMessages);
-
-        // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
-        if (isVoiceModeEnabled && aiResponse.text.trim()) {
-          console.log('🔊 Modo de voz ativo - Executando TTS...');
-          try {
-            if (configData.hostnameAPI_TTS && configData.portAPI) {
-              await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
-            } else {
-              console.warn('⚠️ Configurações não disponíveis para TTS');
-              Alert.alert('Aviso', 'Configurações de TTS não disponíveis');
-            }
-          } catch (error) {
-            console.error('❌ Erro no TTS:', error);
-            Alert.alert('Erro', 'Erro ao reproduzir resposta em áudio');
-          }
+      if (result.success) {
+        if (result.hasEntered !== undefined) {
+          responseText = result.message;
+          queryType = 'entry_check';
+        } else {
+          responseText = attendanceAPI.formatResponse(result, 'list');
+          queryType = 'list';
         }
+      } else {
+        responseText = `Não consegui processar a consulta de assiduidade: ${result.error}`;
+      }
 
-        // REMOVER INDICADOR DE PROCESSAMENTO
-        setIsAiTyping(false);
-      };
+      // Atualizar mensagem com resposta final
+      aiResponse.text = responseText;
+      aiResponse.isStreaming = false;
+      aiResponse.isAttendanceResponse = true;
+      
+      const finalMessages = [...currentMessages, aiResponse];
+      setMessages(finalMessages);
+      await saveMessages(finalMessages);
 
-      // Função para tratar erros
-      const onError = (error) => {
-        console.error('❌ Erro na API de Text to Text:', error);
-        
-        // Criar resposta de erro
-        const errorResponse = {
-          id: Date.now() + 1,
-          text: "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.",
-          sender: "ai",
-          timestamp: new Date(),
-          isError: true
-        };
-        
-        const errorMessages = [...currentMessages, errorResponse];
-        setMessages(errorMessages);
-        saveMessages(errorMessages);
-        setIsAiTyping(false);
-        
-        Alert.alert('Erro', 'Falha ao conectar com a IA. Verifique sua conexão e configurações.');
-      };
+      // TTS se modo voz estiver ativo
+      if (isVoiceModeEnabled && responseText.trim()) {
+        console.log('🔊 Modo de voz ativo - Executando TTS para resposta de assiduidade...');
+        try {
+          if (configData.hostnameAPI_TTS && configData.portAPI) {
+            await handleTTS(responseText, configData, setIsTTSPlaying);
+          }
+        } catch (error) {
+          console.error('❌ Erro no TTS:', error);
+        }
+      }
 
-      // Iniciar stream da API
-      await startTextToTextStream({
-        prompt,
-        messages: apiMessages,
-        onData,
-        onDone,
-        onError
-      });
+      setIsAiTyping(false);
 
     } catch (error) {
-      console.error('❌ Erro geral no processamento da IA:', error);
-      
-      // Resposta de fallback em caso de erro
-      const fallbackResponse = {
-        id: Date.now() + 1,
-        text: "Desculpe, não foi possível processar sua mensagem no momento.",
-        sender: "ai",
-        timestamp: new Date()
-      };
-      
-      const fallbackMessages = [...currentMessages, fallbackResponse];
-      setMessages(fallbackMessages);
-      await saveMessages(fallbackMessages);
-      setIsAiTyping(false);
-      
-      Alert.alert('Erro', 'Erro inesperado. Tente novamente.');
+      console.error('❌ Erro ao processar query de assiduidade:', error);
+      await createErrorResponse(currentMessages, 'Erro ao consultar dados de assiduidade.');
     }
+  };
+
+  // FUNÇÃO PARA PROCESSAMENTO NORMAL DE CHAT
+  const processNormalChatResponse = async (currentMessages) => {
+    // Preparar mensagens para a API (formato esperado pela API)
+    const lastUserMessage = currentMessages[currentMessages.length - 1];
+    const prompt = lastUserMessage.text;
+    
+    // Converter histórico de mensagens para formato da API
+    const apiMessages = currentMessages
+      .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?") // Filtrar mensagem inicial
+      .map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text
+      }));
+
+    console.log('📡 Enviando para API:', { prompt, messages: apiMessages });
+
+    // Criar mensagem inicial da IA (vazia, será preenchida com streaming)
+    const aiResponse = {
+      id: Date.now() + 1,
+      text: "",
+      sender: "ai",
+      timestamp: new Date(),
+      isStreaming: true
+    };
+    
+    let tempMessages = [...currentMessages, aiResponse];
+    setMessages(tempMessages);
+    await saveMessages(tempMessages);
+
+    // Função para processar dados recebidos do stream
+    const onData = (content) => {
+      aiResponse.text += content;
+      tempMessages = [...currentMessages, { ...aiResponse }];
+      setMessages(tempMessages);
+    };
+
+    // Função chamada quando o stream termina
+    const onDone = async () => {
+      console.log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
+      
+      // Marcar como não-streaming e salvar mensagem final
+      aiResponse.isStreaming = false;
+      const finalMessages = [...currentMessages, aiResponse];
+      setMessages(finalMessages);
+      await saveMessages(finalMessages);
+
+      // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
+      if (isVoiceModeEnabled && aiResponse.text.trim()) {
+        console.log('🔊 Modo de voz ativo - Executando TTS...');
+        try {
+          if (configData.hostnameAPI_TTS && configData.portAPI) {
+            await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
+          } else {
+            console.warn('⚠️ Configurações não disponíveis para TTS');
+            Alert.alert('Aviso', 'Configurações de TTS não disponíveis');
+          }
+        } catch (error) {
+          console.error('❌ Erro no TTS:', error);
+          Alert.alert('Erro', 'Erro ao reproduzir resposta em áudio');
+        }
+      }
+
+      // REMOVER INDICADOR DE PROCESSAMENTO
+      setIsAiTyping(false);
+    };
+
+    // Função para tratar erros
+    const onError = (error) => {
+      console.error('❌ Erro na API de Text to Text:', error);
+      createErrorResponse(currentMessages, 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
+    };
+
+    // Iniciar stream da API
+    await startTextToTextStream({
+      prompt,
+      messages: apiMessages,
+      onData,
+      onDone,
+      onError
+    });
+  };
+
+  // FUNÇÃO UTILITÁRIA PARA CRIAR RESPOSTAS DE ERRO
+  const createErrorResponse = async (currentMessages, errorMessage) => {
+    const errorResponse = {
+      id: Date.now() + 1,
+      text: errorMessage,
+      sender: "ai",
+      timestamp: new Date(),
+      isError: true
+    };
+    
+    const errorMessages = [...currentMessages, errorResponse];
+    setMessages(errorMessages);
+    await saveMessages(errorMessages);
+    setIsAiTyping(false);
+    
+    Alert.alert('Erro', errorMessage);
   };
 
   // FUNÇÃO UTILITÁRIA - Limpar conversa (opcional)
