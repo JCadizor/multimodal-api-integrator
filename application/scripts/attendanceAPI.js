@@ -82,7 +82,7 @@ class AttendanceAPI {
       if (date) params.append('date', date);
       
       const url = `${this.baseUrl}/attendance${params.toString() ? '?' + params.toString() : ''}`;
-      
+      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] URL a ser chamada:`, url);
       const response = await fetch(url, {
         method: 'GET',
         headers: this.headers

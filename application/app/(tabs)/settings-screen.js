@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import api_configurations from '../../constants/api_configurations.json';
+import { log } from '../../scripts/simpleLogger.js';
 
 
 export default function SettingsScreen() {
@@ -24,20 +25,19 @@ const [authName, setAuthName] = useState('');
 const [authPassword, setAuthPassword] = useState('');
 const [profileImage, setProfileImage] = useState(null);
 const [debugMode, setDebugMode] = useState(false); // State to control debug mode visibility
-const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural'); // Default voice
+const [selectedVoice, setSelectedVoice] = useState('pt-PT-RaquelNeural'); // Default voice
 const [selectedSTTModel, setSelectedSTTModel] = useState('base'); // Default STT model
 const [defaultLanguage, setDefaultLanguage] = useState('pt'); // Default language
 const [attendanceApiKey, setAttendanceApiKey] = useState('desenvolvimento_key_123'); // API Key da Assiduidade
 const [attendanceBaseUrl, setAttendanceBaseUrl] = useState('https://flask-attendance-api-ymvx.onrender.com'); // URL da API de Assiduidade
 
 const toggleSwitch = async (value) => {
-  
    setDebugMode(value);
-  console.log('Debug mode toggled:', debugMode);
+  log('Debug mode toggled:', debugMode);
   try {
     await AsyncStorage.setItem('debugMode', JSON.stringify(debugMode));
   } catch (error) {
-    console.error("❌ Erro ao guardar estado de debug!", error);
+    console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao guardar estado de debug!`, error);
   }
 };
 
@@ -166,17 +166,20 @@ const  initializeConfigValues = async ()=> {
       setAttendanceApiKey(parsedData.attendanceApiKey || 'desenvolvimento_key_123'); // Load attendance API key
       setAttendanceBaseUrl(parsedData.attendanceBaseUrl || 'https://flask-attendance-api-ymvx.onrender.com'); // Load attendance base URL
       
-    console.log('Dados carregados com sucesso!');
-    console.log('Nome: ' + parsedData.name);
-    console.log('Email: ' + parsedData.email);
-    console.log('Hostname API: ' + parsedData.hostnameAPI_TTS);
-    console.log('Porta API: ' + parsedData.portAPI);
-    console.log('Hostname MQTT: ' + parsedData.hostnameMQTT);
-    console.log('API Key Assiduidade: ' + parsedData.attendanceApiKey);
-    console.log('URL API Assiduidade: ' + parsedData.attendanceBaseUrl);
+    log('📦 Dados das configurações carregados com sucesso!');
+    log('Nome:', parsedData.name);
+    log('Email:', parsedData.email);
+    log('🔊 Voz Selecionada:', parsedData.selectedVoice || 'en-US-JennyNeural');
+    log('🎤 Modelo STT:', parsedData.selectedSTTModel || 'base');
+    log('🌍 Idioma Padrão:', parsedData.defaultLanguage || 'pt');
+    log('Hostname API:', parsedData.hostnameAPI_TTS);
+    log('Porta API:', parsedData.portAPI);
+    log('Hostname MQTT:', parsedData.hostnameMQTT);
+    log('🏢 API Key Assiduidade:', parsedData.attendanceApiKey ? '***definida***' : 'não definida');
+    log('🏢 URL API Assiduidade:', parsedData.attendanceBaseUrl);
     }
   } catch (error) {
-    console.error("❌ Erro ao carregar os dados!", error);
+    console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao carregar os dados!`, error);
   }
 }
 
@@ -204,13 +207,14 @@ const saveSettings = async () => {
 
     await AsyncStorage.setItem('userSettings', JSON.stringify(userData));
     Alert.alert('Sucesso', 'Configurações salvas!');
-    console.log('Voz selecionada salva:', selectedVoice);
-    console.log('Modelo STT selecionado salvo:', selectedSTTModel);
-    console.log('Idioma padrão salvo:', defaultLanguage);
-    console.log('API Key Assiduidade salva:', attendanceApiKey);
-    console.log('URL API Assiduidade salva:', attendanceBaseUrl);
+    log('💾 Configurações salvas com sucesso!');
+    log('🔊 Voz selecionada salva:', selectedVoice);
+    log('🎤 Modelo STT selecionado salvo:', selectedSTTModel);
+    log('🌍 Idioma padrão salvo:', defaultLanguage);
+    log('🏢 API Key Assiduidade salva:', attendanceApiKey ? '***definida***' : 'não definida');
+    log('🏢 URL API Assiduidade salva:', attendanceBaseUrl);
   } catch (error) {
-    console.error("❌ Erro ao guardar os dados!", error);
+    console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao guardar os dados!`, error);
   }
 };
 // guardar definições do utilizador

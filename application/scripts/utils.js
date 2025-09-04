@@ -5,10 +5,11 @@ import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { Alert } from 'react-native';
 import api_configurations from '../constants/api_configurations.json';
+import { log } from './simpleLogger.js';
 
 // TTS - Text to Speech
 export async function handleTTS(userInput, parsedData, setIsPlaying) {
-  console.log('🔊 Processando TTS...');
+  log('🔊 Iniciando processamento TTS...');
   
   const apiConfigurations = api_configurations.Routes;
   const TTSendPoint = apiConfigurations.text_to_speech.endpoint;
@@ -20,9 +21,10 @@ export async function handleTTS(userInput, parsedData, setIsPlaying) {
   // Determinar idioma baseado na voz selecionada
   const language = selectedVoice.startsWith('pt-') ? 'pt' : 'en';
   
-  console.log('TTS URL:', url);
-  console.log('🔊 Voz selecionada:', selectedVoice);
-  console.log('🌍 Idioma determinado:', language);
+  log('🌐 TTS URL:', url);
+  log('🔊 Voz selecionada:', selectedVoice);
+  log('🌍 Idioma determinado:', language);
+  log('📝 Texto para TTS:', userInput.substring(0, 50) + (userInput.length > 50 ? '...' : ''));
 
   try {
     const response = await fetch(url, {
@@ -39,7 +41,7 @@ export async function handleTTS(userInput, parsedData, setIsPlaying) {
       throw new Error(`❌ HTTP error! status: ${response.status}`);
     }
 
-    console.log('✅ Comunicação com a API bem sucedida!', response.status);
+    log('✅ Comunicação com a API TTS bem sucedida! Status:', response.status);
     
     const arrayBuffer = await response.arrayBuffer();
     const base64String = Buffer.from(arrayBuffer).toString('base64');

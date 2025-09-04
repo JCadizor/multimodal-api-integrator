@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Switch, ImageBackground } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
@@ -51,6 +51,14 @@ export default function ChatRoom() {
     initializeChat();
   }, []);
 
+  // RECARREGAR CONFIGURAÇÕES QUANDO A TELA ENTRA EM FOCO
+  useFocusEffect(
+    React.useCallback(() => {
+      log('🔄 Tela em foco - recarregando configurações...');
+      loadConfig();
+    }, [])
+  );
+
   // FUNÇÃO DE INICIALIZAÇÃO DO CHAT
   const initializeChat = async () => {
     await loadMessages();
@@ -64,12 +72,18 @@ export default function ChatRoom() {
       const data = await retrieveAsyncStorageDataAsJson();
       if (data) {
         setConfigData(data);
-        log('Configurações carregadas:', data);
+        log('🔧 Configurações carregadas:', {
+          selectedVoice: data.selectedVoice,
+          selectedSTTModel: data.selectedSTTModel,
+          defaultLanguage: data.defaultLanguage,
+          attendanceApiKey: data.attendanceApiKey ? '***' : 'não definida',
+          attendanceBaseUrl: data.attendanceBaseUrl
+        });
       } else {
-        log('Nenhuma configuração encontrada');
+        log('⚠️ Nenhuma configuração encontrada - usando valores padrão');
       }
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao carregar configurações:`, error);
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao carregar configurações:`, error);
     }
   };
 
