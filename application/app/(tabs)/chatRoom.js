@@ -14,6 +14,7 @@ import {
 } from '../../scripts/utils';
 import { startTextToTextStream } from '../../scripts/handleComunication';
 import attendanceAPI from '../../scripts/attendanceAPI';
+import { log } from '../../scripts/simpleLogger.js';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
 
@@ -36,14 +37,14 @@ export default function ChatRoom() {
 
   // CARREGAMENTO INICIAL - useEffect para persistência
   useEffect(() => {
-    console.log('Modo inicial do chat:', initialMode);
+    log('Modo inicial do chat:', initialMode);
     
     // Configurar modo de voz baseado no parâmetro de navegação
     if (initialMode === 'voice') {
-      console.log('🎤 Chat iniciado em modo VOZ - gravação ativada automaticamente');
+      log('🎤 Chat iniciado em modo VOZ - gravação ativada automaticamente');
       setIsVoiceModeEnabled(true);
     } else {
-      console.log('📝 Chat iniciado em modo TEXTO - input de texto ativado');
+      log('📝 Chat iniciado em modo TEXTO - input de texto ativado');
       setIsVoiceModeEnabled(false);
     }
     
@@ -63,12 +64,12 @@ export default function ChatRoom() {
       const data = await retrieveAsyncStorageDataAsJson();
       if (data) {
         setConfigData(data);
-        console.log('Configurações carregadas:', data);
+        log('Configurações carregadas:', data);
       } else {
-        console.log('Nenhuma configuração encontrada');
+        log('Nenhuma configuração encontrada');
       }
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao carregar configurações:`, error);
     }
   };
 
@@ -81,7 +82,7 @@ export default function ChatRoom() {
         playsInSilentModeIOS: true,
       });
     } catch (error) {
-      console.error('Erro ao configurar áudio:', error);
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao configurar áudio:`, error);
     }
   };
 
@@ -107,7 +108,7 @@ export default function ChatRoom() {
         await saveMessages(initialMessages);
       }
     } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao carregar mensagens:`, error);
       Alert.alert('Erro', 'Falha ao carregar conversas anteriores');
     } finally {
       setIsLoading(false);
@@ -119,7 +120,7 @@ export default function ChatRoom() {
     try {
       await AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messagesToSave));
     } catch (error) {
-      console.error('Erro ao salvar mensagens:', error);
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao salvar mensagens:`, error);
       Alert.alert('Erro', 'Falha ao salvar a conversa');
     }
   };
@@ -151,8 +152,8 @@ export default function ChatRoom() {
     // INDICADOR DE QUE A IA ESTÁ PROCESSANDO
     setIsAiTyping(true);
     
-    console.log('📝 Processando resposta da IA...');
-    console.log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
+    log('📝 Processando resposta da IA...');
+    log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
     
     try {
       const lastUserMessage = currentMessages[currentMessages.length - 1];
@@ -165,7 +166,7 @@ export default function ChatRoom() {
       );
 
       if (isAttendanceQuery) {
-        console.log('🏢 Detectada pergunta sobre assiduidade, consultando API... gatilho =' + attendanceKeywords.find(keyword => userQuery.toLowerCase().includes(keyword)));
+        log('🏢 Detectada pergunta sobre assiduidade, consultando API... gatilho =' + attendanceKeywords.find(keyword => userQuery.toLowerCase().includes(keyword)));
         await processAttendanceQuery(currentMessages, userQuery);
         return;
       }
@@ -174,7 +175,7 @@ export default function ChatRoom() {
       await processNormalChatResponse(currentMessages);
 
     } catch (error) {
-      console.error('❌ Erro geral no processamento da IA:', error);
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro geral no processamento da IA:`, error);
       await createErrorResponse(currentMessages, 'Erro inesperado. Tente novamente.');
     }
   };
@@ -182,7 +183,7 @@ export default function ChatRoom() {
   // NOVA FUNÇÃO PARA PROCESSAR QUERIES DE ASSIDUIDADE
   const processAttendanceQuery = async (currentMessages, userQuery) => {
     try {
-      console.log('🏢 Processando query de assiduidade:', userQuery);
+      log('🏢 Processando query de assiduidade:', userQuery);
       
       // Criar mensagem inicial da IA
       const aiResponse = {
@@ -197,7 +198,7 @@ export default function ChatRoom() {
       setMessages(tempMessages);
 
       // Processar query com a API de assiduidade
-      console.log('[chatRoom.js] processAttendanceQuery -> chamar função processNaturalQuery com:', userQuery);
+      log('[chatRoom.js] processAttendanceQuery -> chamar função processNaturalQuery com:', userQuery);
       const result = await attendanceAPI.processNaturalQuery(userQuery);
       
       let responseText;
@@ -226,7 +227,7 @@ export default function ChatRoom() {
 
       // TTS se modo voz estiver ativo
       if (isVoiceModeEnabled && responseText.trim()) {
-        console.log('🔊 Modo de voz ativo - Executando TTS para resposta de assiduidade...');
+        log('🔊 Modo de voz ativo - Executando TTS para resposta de assiduidade...');
         try {
           if (configData.hostnameAPI_TTS && configData.portAPI) {
             await handleTTS(responseText, configData, setIsTTSPlaying);
@@ -258,7 +259,7 @@ export default function ChatRoom() {
         content: msg.text
       }));
 
-    console.log('📡 Enviando para API:', { prompt, messages: apiMessages });
+    log('📡 Enviando para API:', { prompt, messages: apiMessages });
 
     // Criar mensagem inicial da IA (vazia, será preenchida com streaming)
     const aiResponse = {
@@ -282,7 +283,7 @@ export default function ChatRoom() {
 
     // Função chamada quando o stream termina
     const onDone = async () => {
-      console.log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
+      log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
       
       // Marcar como não-streaming e salvar mensagem final
       aiResponse.isStreaming = false;
@@ -292,7 +293,7 @@ export default function ChatRoom() {
 
       // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
       if (isVoiceModeEnabled && aiResponse.text.trim()) {
-        console.log('🔊 Modo de voz ativo - Executando TTS...');
+        log('🔊 Modo de voz ativo - Executando TTS...');
         try {
           if (configData.hostnameAPI_TTS && configData.portAPI) {
             await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
@@ -397,13 +398,13 @@ export default function ChatRoom() {
       [{ text: 'OK' }]
     );
     
-    console.log('🔊 Modo de voz:', newMode ? 'ATIVADO' : 'DESATIVADO');
+    log('🔊 Modo de voz:', newMode ? 'ATIVADO' : 'DESATIVADO');
   };
 
   // FUNÇÃO PARA INICIAR GRAVAÇÃO DE VOZ
   const startRecording = async () => {
     try {
-      console.log('🎤 Iniciando gravação...');
+      log('🎤 Iniciando gravação...');
       
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY

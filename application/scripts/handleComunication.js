@@ -1,6 +1,7 @@
 import api_configurations from '../constants/api_configurations.json'; // Import API settings from JSON file
 import {retrieveAsyncStorageDataAsJson} from './utils.js'; // Import utility functions
 import {fetch} from 'expo/fetch'; // Importando fetch do expo para garantir compatibilidade
+import { log } from './simpleLogger.js';
 
 const apiConfigurations = api_configurations.Routes; // Access the API configurations from the JSON file
 
@@ -10,13 +11,13 @@ const apiConfigurations = api_configurations.Routes; // Access the API configura
 export async function startTextToTextStream({ prompt, messages = [], onData, onDone, onError }) {
     let parsedData = await retrieveAsyncStorageDataAsJson();
   if (!parsedData) {
-    console.error(' [from HandleCommunications] ❌ Nenhum dado encontrado no AsyncStorage. Verifique se os dados foram salvos corretamente.');
+    console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [handleComunication.js] ❌ Nenhum dado encontrado no AsyncStorage. Verifique se os dados foram salvos corretamente.`);
     return;
   }
   
   const apiURl= `http://${parsedData.hostnameAPI_TTS}:${parsedData.portAPI}${apiConfigurations.text_to_text.endpoint_stream}`; // Construct the API URL using the retrieved data
-  console.log('📡 [handleComunication.js] STREAM START na URL:', apiURl)  ;
-  console.log('📡 [handleComunication.js] a perguntar o prompt:', prompt)  ;
+  log('[handleComunication.js] 📡 STREAM START na URL:', apiURl);
+  log('[handleComunication.js] 📡 a perguntar o prompt:', prompt);
   try {
     const response = await fetch(apiURl, {
       method: 'POST',
@@ -103,8 +104,8 @@ export async function stopStream() {
       throw new Error('Erro ao parar o stream');
     }
 
-    console.log('[handleComunication.js] Stream parado com sucesso');
+    log('[handleComunication.js] Stream parado com sucesso');
   } catch (error) {
-    console.error('[handleComunication.js] Erro ao parar o stream:', error);
+    console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [handleComunication.js] ❌ Erro ao parar o stream:`, error);
   }
 }

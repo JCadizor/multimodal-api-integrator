@@ -23,6 +23,7 @@ import ChatComponent from '../../components/chatComponent.js';
 import { sendSentimentAnalysis } from '../../scripts/sentimentAnalysis.js';
 import { hardware, hardwareLoad } from '../../scripts/hardware.js';
 import { handleTTS, handleLanguageDetection } from '../../scripts/utils.js';
+import { log } from '../../scripts/simpleLogger.js';
 
 // CONFIGURAÇÕES GLOBAIS
 const apiConfigurations = api_configurations.Routes;
@@ -40,18 +41,18 @@ const initializeConfigValues = async () => {
       if (newParsedData) {
         Object.assign(parsedData, newParsedData);
         
-        console.log('📦 Dados carregados com sucesso!');
-        console.log('Nome:', parsedData.name);
-        console.log('Email:', parsedData.email);
-        console.log('Hostname API:', parsedData.hostnameAPI_TTS);
-        console.log('Porta API:', parsedData.portAPI);
-        console.log('Hostname MQTT:', parsedData.hostnameMQTT);
+        log('📦 Dados carregados com sucesso!');
+        log('Nome:', parsedData.name);
+        log('Email:', parsedData.email);
+        log('Hostname API:', parsedData.hostnameAPI_TTS);
+        log('Porta API:', parsedData.portAPI);
+        log('Hostname MQTT:', parsedData.hostnameMQTT);
       } else {
-        console.log('📦 Nenhum dado encontrado no AsyncStorage [Index.js > initializeConfigValues].');
+        log('📦 Nenhum dado encontrado no AsyncStorage [Index.js > initializeConfigValues].');
       }
     }
   } catch (error) {
-    console.error('❌ Erro ao carregar os dados! [Index.js > initializeConfigValues]', error);
+    console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao carregar os dados! [Index.js > initializeConfigValues]`, error);
   }
 };
 
@@ -72,7 +73,7 @@ export default function HomeScreen() {
 
   // CARREGAMENTO INICIAL
   useEffect(() => {
-    console.log('Inicializando valores de configuração...');
+    log('Inicializando valores de configuração...');
     initializeConfigValues();
   }, []);
 
