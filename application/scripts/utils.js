@@ -244,3 +244,20 @@ export async function retrieveAsyncStorageDataAsJson() {
       }
         return parsedData;
     }
+
+// Função para gerar timestamp no formato [2025-08-23T08:42:00.123456]
+export function getFormattedTimestamp() {
+  const now = new Date();
+  
+  // Obter componentes da data
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+  
+  // Formatar timestamp no formato ISO-like com microssegundos
+  return `[${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}]`;
+}

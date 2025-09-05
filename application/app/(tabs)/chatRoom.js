@@ -10,7 +10,8 @@ import {
   handleSTT, 
   handleSTTWithLanguage,
   handleLanguageDetection, 
-  retrieveAsyncStorageDataAsJson 
+  retrieveAsyncStorageDataAsJson,
+  getFormattedTimestamp
 } from '../../scripts/utils';
 import { startTextToTextStream } from '../../scripts/handleComunication';
 import attendanceAPI from '../../scripts/attendanceAPI';
@@ -158,6 +159,7 @@ export default function ChatRoom() {
     
     log('📝 Processando resposta da IA...');
     log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
+    console.log(`${getFormattedTimestamp()} 🤖 INÍCIO do processamento de resposta da IA`);
     
     try {
       await processNormalChatResponse(currentMessages);
@@ -187,11 +189,22 @@ Tipos de consulta disponíveis:
 - get_records: Obter registos por data ou nome
 - list_all: Listar todos os registos
 
-Exemplos:
+Exemplos em que hoje = 2025-08-23:
 - "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry | João]
 - "Histórico do Pedro" → Responda: [ATTENDANCE_QUERY: get_history | Pedro]  
-- "Quem entrou hoje?" → Responda: [ATTENDANCE_QUERY: get_records | date:hoje]
-- "Registos da semana passada" → Responda: [ATTENDANCE_QUERY: get_records | date:semana_passada]
+- "Quem entrou hoje?" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-23]
+- "Registos da sexta feira passada" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-22]
+
+Exemplo de resposta da Base de Dados de Assiduidade:
+{
+  "id": 1,
+  "name": "Colaborador A",
+  "date": "2025-08-23",
+  "location": "Escritório Central",
+  "time_entry": "08:42:00",
+  "time_exit": "17:30:00",
+  "created_at": "2025-08-23T08:42:00.123456"
+}
 
 IMPORTANTE: Use EXATAMENTE este formato com colchetes, dois pontos e pipe (|). Não adicione explicações junto com a query - a query deve ser uma linha separada.
 As respostas a este tipo de perguntas devem de ser curtas e objetivas.
@@ -239,6 +252,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       
       if (attendanceQueryMatch) {
         log('🏢 IA solicitou dados de assiduidade:', attendanceQueryMatch[0]);
+        console.log(`${getFormattedTimestamp()} 🏢 ATTENDANCE_QUERY detectado: ${attendanceQueryMatch[0]}`);
         
         const queryType = attendanceQueryMatch[1].trim();
         const queryParams = attendanceQueryMatch[2].trim();
@@ -271,6 +285,8 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       setIsAiTyping(false);
     };
 
+    console.log(`${getFormattedTimestamp()} 🤖 FIM do processamento de resposta da IA`);
+
     const onError = (error) => {
       console.error('❌ Erro na API de Text to Text:', error);
       createErrorResponse(currentMessages, 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
@@ -290,6 +306,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
   const processAttendanceRequest = async (currentMessages, aiResponse, queryType, queryParams) => {
     try {
       log('🏢 Processando solicitação de assiduidade da IA:', { queryType, queryParams });
+      console.log(`${getFormattedTimestamp()} 🏢 Iniciando consulta de assiduidade: ${queryType} | ${queryParams}`);
       
       aiResponse.text = "Consultando dados de assiduidade...";
       aiResponse.isStreaming = true;
@@ -333,6 +350,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       }
       
       log('🏢 Resultado da consulta de assiduidade:', result);
+      console.log(`${getFormattedTimestamp()} 🏢 Resultado obtido:`, result.success ? '✅ SUCESSO' : '❌ ERRO');
       
       // Preparar dados para enviar de volta à IA
       let attendanceData;
@@ -538,6 +556,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
   const startRecording = async () => {
     try {
       log('🎤 Iniciando gravação...');
+      console.log(`${getFormattedTimestamp()} 🎤 INÍCIO da gravação de voz`);
       
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
@@ -567,6 +586,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       setIsRecording(false);
       
       log('✅ Gravação salva em:', uri);
+      console.log(`${getFormattedTimestamp()} 🎤 FIM da gravação - Áudio salvo: ${uri}`);
       
       // Processar áudio gravado
       if (uri) {
