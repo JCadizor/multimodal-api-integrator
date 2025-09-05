@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Switch, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator, Switch, ImageBackground } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,7 +19,6 @@ import { log } from '../../scripts/simpleLogger.js';
 const CHAT_STORAGE_KEY = '@chat_messages';
 
 export default function ChatRoom() {
-  // PARÂMETROS DE NAVEGAÇÃO
   const params = useLocalSearchParams();
   const initialMode = params.initialMode || 'text'; // 'text' ou 'voice'
   
@@ -27,19 +26,16 @@ export default function ChatRoom() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAiTyping, setIsAiTyping] = useState(false);
-  // Modo de voz baseado no parâmetro de navegação: 'voice' = true, 'text' = false
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(initialMode === 'voice');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
-  const [recordedAudio, setRecordedAudio] = useState(null);
   const [configData, setConfigData] = useState({});
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
 
-  // CARREGAMENTO INICIAL - useEffect para persistência
+  // Carregamento inicial e configuração do modo de voz
   useEffect(() => {
     log('Modo inicial do chat:', initialMode);
     
-    // Configurar modo de voz baseado no parâmetro de navegação
     if (initialMode === 'voice') {
       log('🎤 Chat iniciado em modo VOZ - gravação ativada automaticamente');
       setIsVoiceModeEnabled(true);
@@ -51,7 +47,7 @@ export default function ChatRoom() {
     initializeChat();
   }, []);
 
-  // RECARREGAR CONFIGURAÇÕES QUANDO A TELA ENTRA EM FOCO
+  // Recarregar configurações quando a tela entra em foco
   useFocusEffect(
     React.useCallback(() => {
       log('🔄 Tela em foco - recarregando configurações...');
@@ -59,14 +55,14 @@ export default function ChatRoom() {
     }, [])
   );
 
-  // FUNÇÃO DE INICIALIZAÇÃO DO CHAT
+  // Função de inicialização do chat
   const initializeChat = async () => {
     await loadMessages();
     await loadConfig();
     await setupAudio();
   };
 
-  // CARREGAMENTO DE CONFIGURAÇÕES - Carrega dados do AsyncStorage
+  // Carregamento de configurações do AsyncStorage
   const loadConfig = async () => {
     try {
       const data = await retrieveAsyncStorageDataAsJson();
@@ -87,7 +83,7 @@ export default function ChatRoom() {
     }
   };
 
-  // CONFIGURAÇÃO DE ÁUDIO - Configurar modo de gravação
+  // Configuração de áudio
   const setupAudio = async () => {
     try {
       await Audio.requestPermissionsAsync();
@@ -100,21 +96,19 @@ export default function ChatRoom() {
     }
   };
 
-  // FUNÇÃO DE CARREGAMENTO - Lê dados do AsyncStorage
+  // Carregamento de mensagens do AsyncStorage
   const loadMessages = async () => {
     try {
       setIsLoading(true);
       const storedMessages = await AsyncStorage.getItem(CHAT_STORAGE_KEY);
       
       if (storedMessages) {
-        // Parse dos dados JSON e conversão de timestamps
         const parsedMessages = JSON.parse(storedMessages).map(msg => ({
           ...msg,
-          timestamp: new Date(msg.timestamp) // Reconstroi objeto Date
+          timestamp: new Date(msg.timestamp)
         }));
         setMessages(parsedMessages);
       } else {
-        // Mensagens iniciais se não houver dados salvos
         const initialMessages = [
           { id: 1, text: "Olá! Como posso ajudá-lo hoje?", sender: "ai", timestamp: new Date() },
         ];
@@ -129,7 +123,7 @@ export default function ChatRoom() {
     }
   };
 
-  // FUNÇÃO DE SALVAMENTO - Persiste dados no AsyncStorage
+  // Salvamento de mensagens no AsyncStorage
   const saveMessages = async (messagesToSave) => {
     try {
       await AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messagesToSave));
@@ -139,11 +133,11 @@ export default function ChatRoom() {
     }
   };
 
-  // FUNÇÃO ATUALIZADA - Agora salva após cada mensagem
+  // Envio de mensagem do utilizador
   const sendMessage = async () => {
-    if (inputText.trim()) { // Verifica se o texto não está vazio
+    if (inputText.trim()) {
       const newMessage = {
-        id: Date.now(), // Usando timestamp como ID único
+        id: Date.now(),
         text: inputText.trim(),
         sender: "user",
         timestamp: new Date()
@@ -153,24 +147,19 @@ export default function ChatRoom() {
       setMessages(updatedMessages);
       setInputText('');
       
-      // PERSISTÊNCIA IMEDIATA - Salva após adicionar mensagem do utilizador
       await saveMessages(updatedMessages);
-      
-      // Processar resposta da IA
       await processAIResponse(updatedMessages);
     }
   };
 
-  // FUNÇÃO PARA PROCESSAR RESPOSTA DA IA
+  // Processamento de resposta da IA
   const processAIResponse = async (currentMessages) => {
-    // INDICADOR DE QUE A IA ESTÁ PROCESSANDO
     setIsAiTyping(true);
     
     log('📝 Processando resposta da IA...');
     log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
     
     try {
-      // PROCESSAMENTO COM API DE CHAT (agora sempre vai para a IA primeiro)
       await processNormalChatResponse(currentMessages);
 
     } catch (error) {
@@ -179,13 +168,12 @@ export default function ChatRoom() {
     }
   };
 
-  // FUNÇÃO PARA PROCESSAMENTO NORMAL DE CHAT
+  // Processamento normal de chat com IA
   const processNormalChatResponse = async (currentMessages) => {
-    // Preparar mensagens para a API (formato esperado pela API)
     const lastUserMessage = currentMessages[currentMessages.length - 1];
     const userPrompt = lastUserMessage.text;
     
-    // PROMPT ESPECIAL PARA O AGENTE DE IA
+    // Prompt especial para o agente de IA
     const systemPrompt = `Você é um assistente inteligente que pode ajudar com várias tarefas, incluindo consultas sobre dados de assiduidade de colaboradores.
 
 IMPORTANTE - Sistema de Consulta de Assiduidade:
@@ -215,8 +203,8 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
     
     // Converter histórico de mensagens para formato da API
     const apiMessages = currentMessages
-      .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?") // Filtrar mensagem inicial
-      .slice(-10) // Limitar a 10 mensagens mais recentes para contexto
+      .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?")
+      .slice(-10)
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
@@ -224,7 +212,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
 
     log('📡 Enviando para API:', { prompt, messages: apiMessages });
 
-    // Criar mensagem inicial da IA (vazia, será preenchida com streaming)
+    // Criar mensagem inicial da IA (será preenchida com streaming)
     const aiResponse = {
       id: Date.now() + 1,
       text: "",
@@ -237,18 +225,16 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
     setMessages(tempMessages);
     await saveMessages(tempMessages);
 
-    // Função para processar dados recebidos do stream
     const onData = (content) => {
       aiResponse.text += content;
       tempMessages = [...currentMessages, { ...aiResponse }];
       setMessages(tempMessages);
     };
 
-    // Função chamada quando o stream termina
     const onDone = async () => {
       log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
       
-      // DETECTAR SE A IA SOLICITOU DADOS DE ASSIDUIDADE
+      // Detectar se a IA solicitou dados de assiduidade
       const attendanceQueryMatch = aiResponse.text.match(/\[ATTENDANCE_QUERY:\s*([^|]+)\s*\|\s*([^\]]+)\]/);
       
       if (attendanceQueryMatch) {
@@ -257,18 +243,16 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
         const queryType = attendanceQueryMatch[1].trim();
         const queryParams = attendanceQueryMatch[2].trim();
         
-        // Processar a solicitação de assiduidade
         await processAttendanceRequest(currentMessages, aiResponse, queryType, queryParams);
         return;
       }
       
-      // Marcar como não-streaming e salvar mensagem final
       aiResponse.isStreaming = false;
       const finalMessages = [...currentMessages, aiResponse];
       setMessages(finalMessages);
       await saveMessages(finalMessages);
 
-      // INTEGRAÇÃO TTS SE O MODO VOZ ESTIVER ATIVO
+      // TTS se o modo voz estiver ativo
       if (isVoiceModeEnabled && aiResponse.text.trim()) {
         log('🔊 Modo de voz ativo - Executando TTS...');
         try {
@@ -284,11 +268,9 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
         }
       }
 
-      // REMOVER INDICADOR DE PROCESSAMENTO
       setIsAiTyping(false);
     };
 
-    // Função para tratar erros
     const onError = (error) => {
       console.error('❌ Erro na API de Text to Text:', error);
       createErrorResponse(currentMessages, 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
@@ -304,12 +286,11 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
     });
   };
 
-  // NOVA FUNÇÃO PARA PROCESSAR SOLICITAÇÕES DE ASSIDUIDADE DA IA
+  // Processamento de solicitações de assiduidade da IA
   const processAttendanceRequest = async (currentMessages, aiResponse, queryType, queryParams) => {
     try {
       log('🏢 Processando solicitação de assiduidade da IA:', { queryType, queryParams });
       
-      // Atualizar mensagem da IA para mostrar que está consultando dados
       aiResponse.text = "Consultando dados de assiduidade...";
       aiResponse.isStreaming = true;
       
@@ -318,7 +299,6 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       
       let result;
       
-      // Processar diferentes tipos de consulta
       switch (queryType) {
         case 'check_entry':
           result = await attendanceAPI.checkEmployeeEntryToday(queryParams);
@@ -391,7 +371,6 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
     } catch (error) {
       console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao processar solicitação de assiduidade:`, error);
       
-      // Atualizar mensagem com erro
       aiResponse.text = "Desculpe, ocorreu um erro ao consultar os dados de assiduidade.";
       aiResponse.isStreaming = false;
       
@@ -402,7 +381,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
     }
   };
 
-  // FUNÇÃO PARA ENVIAR DADOS DE ASSIDUIDADE DE VOLTA À IA
+  // Envio de dados de assiduidade de volta à IA
   const sendAttendanceDataToAI = async (currentMessages, aiResponse, attendanceData, originalQuery) => {
     try {
       log('🤖 Enviando dados de assiduidade para a IA processar...');
@@ -484,7 +463,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
     }
   };
 
-  // FUNÇÃO UTILITÁRIA PARA CRIAR RESPOSTAS DE ERRO
+  // Criação de respostas de erro
   const createErrorResponse = async (currentMessages, errorMessage) => {
     const errorResponse = {
       id: Date.now() + 1,
@@ -502,7 +481,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
     Alert.alert('Erro', errorMessage);
   };
 
-  // FUNÇÃO UTILITÁRIA - Limpar conversa (opcional)
+  // Limpeza da conversa
   const clearChat = async () => {
     Alert.alert(
       'Limpar Conversa',
@@ -514,7 +493,6 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
           style: 'destructive',
           onPress: async () => {
             try {
-              // Parar gravação se estiver ativa
               if (recording) {
                 await stopRecording();
               }
@@ -523,7 +501,6 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
               setMessages([]);
               setIsAiTyping(false);
               setIsRecording(false);
-              setRecordedAudio(null);
               setIsTTSPlaying(false);
               
               Alert.alert('Sucesso', 'Conversa limpa com sucesso!');
@@ -536,12 +513,11 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
     );
   };
 
-  // FUNÇÃO PARA TOGGLE DE VOZ - Gerencia modo TTS/STT
+  // Toggle de modo de voz
   const toggleVoiceMode = () => {
     const newMode = !isVoiceModeEnabled;
     setIsVoiceModeEnabled(newMode);
     
-    // Limpar estado de gravação ao trocar modo
     if (!newMode && recording) {
       stopRecording();
     }
@@ -569,7 +545,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       
       setRecording(recording);
       setIsRecording(true);
-      console.log('🎤 Gravação iniciada!');
+      log('🎤 Gravação iniciada!');
       
     } catch (error) {
       console.error('❌ Erro ao iniciar gravação:', error);
@@ -582,16 +558,15 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
     if (!recording) return;
     
     try {
-      console.log('🛑 Parando gravação...');
+      log('🛑 Parando gravação...');
       
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       
       setRecording(null);
       setIsRecording(false);
-      setRecordedAudio(uri);
       
-      console.log('✅ Gravação salva em:', uri);
+      log('✅ Gravação salva em:', uri);
       
       // Processar áudio gravado
       if (uri) {
@@ -606,19 +581,19 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
 
   // FUNÇÃO PARA PROCESSAR ÁUDIO GRAVADO
   const processRecordedAudio = async (audioUri) => {
-    console.log('🔄 Processando áudio gravado...');
+    log('🔄 Processando áudio gravado...');
     
     try {
       // Verificar se temos configurações
       if (!configData.hostnameAPI_TTS || !configData.portAPI) {
         console.warn('⚠️ Configurações não carregadas, usando transcrição simulada');
         const simulatedTranscription = "Mensagem de áudio transcrita (simulada)";
-        await createMessageFromTranscription(simulatedTranscription, true, null, audioUri);
+        await createMessageFromTranscription(simulatedTranscription, true, null);
         return;
       }
 
       // 1. Primeira transcrição com idioma padrão para detectar idioma
-      console.log('🎤 Primeira transcrição para detecção de idioma...');
+      log('🎤 Primeira transcrição para detecção de idioma...');
       const initialTranscription = await handleSTT(audioUri, configData);
       
       // 2. Detectar idioma do texto transcrito
@@ -627,46 +602,45 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       
       try {
         detectedLanguage = await handleLanguageDetection(initialTranscription, configData);
-        console.log('🌍 Idioma detectado:', detectedLanguage.name, `(${detectedLanguage.code})`);
+        log('🌍 Idioma detectado:', detectedLanguage.name, `(${detectedLanguage.code})`);
         
         // 3. Se o idioma detectado for diferente do padrão, fazer nova transcrição
         const detectedLangCode = detectedLanguage.code;
         const defaultLang = configData.defaultLanguage || 'pt'; // Usar idioma padrão configurado
         
         if (detectedLangCode !== defaultLang) {
-          console.log(`🔄 Re-transcrevendo áudio com idioma detectado: ${detectedLangCode}`);
+          log(`🔄 Re-transcrevendo áudio com idioma detectado: ${detectedLangCode}`);
           finalTranscription = await handleSTTWithLanguage(audioUri, configData, detectedLangCode);
-          console.log('✅ Transcrição final:', finalTranscription);
+          log('✅ Transcrição final:', finalTranscription);
         } else {
-          console.log('✅ Idioma detectado coincide com padrão, usando transcrição inicial');
+          log('✅ Idioma detectado coincide com padrão, usando transcrição inicial');
         }
         
       } catch (langError) {
         console.warn('⚠️ Erro na detecção de idioma:', langError);
-        console.log('📝 Continuando com transcrição inicial');
+        log('📝 Continuando com transcrição inicial');
         // Continuar com a transcrição inicial
       }
       
       // 4. Criar mensagem com informações finais
-      await createMessageFromTranscription(finalTranscription, true, detectedLanguage, audioUri);
+      await createMessageFromTranscription(finalTranscription, true, detectedLanguage);
       
     } catch (error) {
       console.error('❌ Erro ao processar áudio:', error);
       // Fallback para simulação em caso de erro
       const fallbackTranscription = "Erro na transcrição - mensagem simulada";
-      await createMessageFromTranscription(fallbackTranscription, true, null, audioUri);
+      await createMessageFromTranscription(fallbackTranscription, true, null);
     }
   };
 
   // FUNÇÃO AUXILIAR - Criar mensagem a partir da transcrição
-  const createMessageFromTranscription = async (transcriptionText, isVoiceMessage = false, detectedLanguage = null, audioUri = null) => {
+  const createMessageFromTranscription = async (transcriptionText, isVoiceMessage = false, detectedLanguage = null) => {
     const newMessage = {
       id: Date.now(),
       text: transcriptionText,
       sender: "user",
       timestamp: new Date(),
       isVoiceMessage,
-      audioUri, // URI do áudio gravado para playback
       detectedLanguage: detectedLanguage ? {
         code: detectedLanguage.code,
         name: detectedLanguage.name
@@ -678,7 +652,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
     
     // Log informativo sobre o idioma detectado
     if (detectedLanguage) {
-      console.log(`📝 Mensagem criada em ${detectedLanguage.name} (${detectedLanguage.code}): "${transcriptionText}"`);
+      log(`📝 Mensagem criada em ${detectedLanguage.name} (${detectedLanguage.code}): "${transcriptionText}"`);
     }
     
     // Salvar e processar resposta da IA
