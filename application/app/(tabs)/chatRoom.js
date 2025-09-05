@@ -170,22 +170,7 @@ export default function ChatRoom() {
     log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
     
     try {
-      const lastUserMessage = currentMessages[currentMessages.length - 1];
-      const userQuery = lastUserMessage.text;
-      
-      // VERIFICAR SE É UMA PERGUNTA SOBRE ASSIDUIDADE
-      const attendanceKeywords = ['assiduidade', 'entrou', 'entrada', 'colaborador', 'funcionário', 'trabalhador', 'hoje', 'histórico'];
-      const isAttendanceQuery = attendanceKeywords.some(keyword => 
-        userQuery.toLowerCase().includes(keyword)
-      );
-
-      if (isAttendanceQuery) {
-        log('🏢 Detectada pergunta sobre assiduidade, consultando API... gatilho =' + attendanceKeywords.find(keyword => userQuery.toLowerCase().includes(keyword)));
-        await processAttendanceQuery(currentMessages, userQuery);
-        return;
-      }
-
-      // PROCESSAMENTO NORMAL COM API DE CHAT
+      // PROCESSAMENTO COM API DE CHAT (agora sempre vai para a IA primeiro)
       await processNormalChatResponse(currentMessages);
 
     } catch (error) {
@@ -194,80 +179,44 @@ export default function ChatRoom() {
     }
   };
 
-  // NOVA FUNÇÃO PARA PROCESSAR QUERIES DE ASSIDUIDADE
-  const processAttendanceQuery = async (currentMessages, userQuery) => {
-    try {
-      log('🏢 Processando query de assiduidade:', userQuery);
-      
-      // Criar mensagem inicial da IA
-      const aiResponse = {
-        id: Date.now() + 1,
-        text: "Consultando dados de assiduidade...",
-        sender: "ai",
-        timestamp: new Date(),
-        isStreaming: true
-      };
-      
-      let tempMessages = [...currentMessages, aiResponse];
-      setMessages(tempMessages);
-
-      // Processar query com a API de assiduidade
-      log('[chatRoom.js] processAttendanceQuery -> chamar função processNaturalQuery com:', userQuery);
-      const result = await attendanceAPI.processNaturalQuery(userQuery);
-      
-      let responseText;
-      let queryType = 'general';
-
-      if (result.success) {
-        if (result.hasEntered !== undefined) {
-          responseText = result.message;
-          queryType = 'entry_check';
-        } else {
-          responseText = attendanceAPI.formatResponse(result, 'list');
-          queryType = 'list';
-        }
-      } else {
-        responseText = `Não consegui processar a consulta de assiduidade: ${result.error}`;
-      }
-
-      // Atualizar mensagem com resposta final
-      aiResponse.text = responseText;
-      aiResponse.isStreaming = false;
-      aiResponse.isAttendanceResponse = true;
-      
-      const finalMessages = [...currentMessages, aiResponse];
-      setMessages(finalMessages);
-      await saveMessages(finalMessages);
-
-      // TTS se modo voz estiver ativo
-      if (isVoiceModeEnabled && responseText.trim()) {
-        log('🔊 Modo de voz ativo - Executando TTS para resposta de assiduidade...');
-        try {
-          if (configData.hostnameAPI_TTS && configData.portAPI) {
-            await handleTTS(responseText, configData, setIsTTSPlaying);
-          }
-        } catch (error) {
-          console.error('❌ Erro no TTS:', error);
-        }
-      }
-
-      setIsAiTyping(false);
-
-    } catch (error) {
-      console.error('❌ Erro ao processar query de assiduidade:', error);
-      await createErrorResponse(currentMessages, 'Erro ao consultar dados de assiduidade.');
-    }
-  };
-
   // FUNÇÃO PARA PROCESSAMENTO NORMAL DE CHAT
   const processNormalChatResponse = async (currentMessages) => {
     // Preparar mensagens para a API (formato esperado pela API)
     const lastUserMessage = currentMessages[currentMessages.length - 1];
-    const prompt = lastUserMessage.text;
+    const userPrompt = lastUserMessage.text;
+    
+    // PROMPT ESPECIAL PARA O AGENTE DE IA
+    const systemPrompt = `Você é um assistente inteligente que pode ajudar com várias tarefas, incluindo consultas sobre dados de assiduidade de colaboradores.
+
+IMPORTANTE - Sistema de Consulta de Assiduidade:
+Se o utilizador fizer perguntas relacionadas com assiduidade, presença, entrada, saída ou dados de colaboradores/funcionários, deves solicitar os dados que precisas para a resposta seguindo EXATAMENTE este formato:
+
+Para consultar dados, use: [ATTENDANCE_QUERY: tipo_consulta | parâmetros]
+
+Tipos de consulta disponíveis:
+- check_entry: Verificar se um colaborador entrou hoje
+- get_history: Obter histórico de um colaborador  
+- get_records: Obter registos por data ou nome
+- list_all: Listar todos os registos
+
+Exemplos:
+- "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry | João]
+- "Histórico do Pedro" → Responda: [ATTENDANCE_QUERY: get_history | Pedro]  
+- "Quem entrou hoje?" → Responda: [ATTENDANCE_QUERY: get_records | date:hoje]
+- "Registos da semana passada" → Responda: [ATTENDANCE_QUERY: get_records | date:semana_passada]
+
+IMPORTANTE: Use EXATAMENTE este formato com colchetes, dois pontos e pipe (|). Não adicione explicações junto com a query - a query deve ser uma linha separada.
+As respostas a este tipo de perguntas devem de ser curtas e objetivas.
+IMPORTANTE: usa linguagem natural e sem sinais de pontuações contrutores, este texto pode ser lido em voz alta por sintetizadores de voz.Não deves responder com **Detalhes:** * **Hora de entrada:** ... * **Hora de saída:** ... etc.
+
+Para outros assuntos, responda normalmente como um assistente prestável.`;
+
+    const prompt = systemPrompt + "\n\nutilizador: " + userPrompt;
     
     // Converter histórico de mensagens para formato da API
     const apiMessages = currentMessages
       .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?") // Filtrar mensagem inicial
+      .slice(-10) // Limitar a 10 mensagens mais recentes para contexto
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
@@ -298,6 +247,20 @@ export default function ChatRoom() {
     // Função chamada quando o stream termina
     const onDone = async () => {
       log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
+      
+      // DETECTAR SE A IA SOLICITOU DADOS DE ASSIDUIDADE
+      const attendanceQueryMatch = aiResponse.text.match(/\[ATTENDANCE_QUERY:\s*([^|]+)\s*\|\s*([^\]]+)\]/);
+      
+      if (attendanceQueryMatch) {
+        log('🏢 IA solicitou dados de assiduidade:', attendanceQueryMatch[0]);
+        
+        const queryType = attendanceQueryMatch[1].trim();
+        const queryParams = attendanceQueryMatch[2].trim();
+        
+        // Processar a solicitação de assiduidade
+        await processAttendanceRequest(currentMessages, aiResponse, queryType, queryParams);
+        return;
+      }
       
       // Marcar como não-streaming e salvar mensagem final
       aiResponse.isStreaming = false;
@@ -339,6 +302,186 @@ export default function ChatRoom() {
       onDone,
       onError
     });
+  };
+
+  // NOVA FUNÇÃO PARA PROCESSAR SOLICITAÇÕES DE ASSIDUIDADE DA IA
+  const processAttendanceRequest = async (currentMessages, aiResponse, queryType, queryParams) => {
+    try {
+      log('🏢 Processando solicitação de assiduidade da IA:', { queryType, queryParams });
+      
+      // Atualizar mensagem da IA para mostrar que está consultando dados
+      aiResponse.text = "Consultando dados de assiduidade...";
+      aiResponse.isStreaming = true;
+      
+      let tempMessages = [...currentMessages, aiResponse];
+      setMessages(tempMessages);
+      
+      let result;
+      
+      // Processar diferentes tipos de consulta
+      switch (queryType) {
+        case 'check_entry':
+          result = await attendanceAPI.checkEmployeeEntryToday(queryParams);
+          break;
+          
+        case 'get_history':
+          result = await attendanceAPI.getHistory(queryParams, 10);
+          break;
+          
+        case 'get_records':
+          if (queryParams.startsWith('date:')) {
+            const dateParam = queryParams.replace('date:', '');
+            let date = null;
+            
+            if (dateParam === 'hoje') {
+              date = new Date().toISOString().split('T')[0];
+            }
+            // Adicionar mais lógica de datas se necessário
+            
+            result = await attendanceAPI.getAttendance(null, date);
+          } else {
+            result = await attendanceAPI.getAttendance(queryParams, null);
+          }
+          break;
+          
+        case 'list_all':
+          result = await attendanceAPI.getAttendance();
+          break;
+          
+        default:
+          result = { success: false, error: 'Tipo de consulta não reconhecido' };
+      }
+      
+      log('🏢 Resultado da consulta de assiduidade:', result);
+      
+      // Preparar dados para enviar de volta à IA
+      let attendanceData;
+      if (result.success) {
+        if (result.hasEntered !== undefined) {
+          // Resultado de verificação de entrada
+          attendanceData = {
+            type: 'check_entry',
+            employee: queryParams,
+            hasEntered: result.hasEntered,
+            message: result.message,
+            entryTime: result.entryTime || null
+          };
+        } else if (Array.isArray(result.data)) {
+          // Resultado de consulta de registos
+          attendanceData = {
+            type: 'records',
+            data: result.data.map(record => ({
+              name: record.name,
+              date: record.date,
+              timeEntry: record.time_entry,
+              timeExit: record.time_exit,
+              location: record.location
+            }))
+          };
+        } else {
+          attendanceData = { type: 'other', data: result.data };
+        }
+      } else {
+        attendanceData = { type: 'error', error: result.error };
+      }
+      
+      // Enviar dados de volta para a IA processar e formatar resposta final
+      await sendAttendanceDataToAI(currentMessages, aiResponse, attendanceData, queryParams);
+      
+    } catch (error) {
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao processar solicitação de assiduidade:`, error);
+      
+      // Atualizar mensagem com erro
+      aiResponse.text = "Desculpe, ocorreu um erro ao consultar os dados de assiduidade.";
+      aiResponse.isStreaming = false;
+      
+      const finalMessages = [...currentMessages, aiResponse];
+      setMessages(finalMessages);
+      await saveMessages(finalMessages);
+      setIsAiTyping(false);
+    }
+  };
+
+  // FUNÇÃO PARA ENVIAR DADOS DE ASSIDUIDADE DE VOLTA À IA
+  const sendAttendanceDataToAI = async (currentMessages, aiResponse, attendanceData, originalQuery) => {
+    try {
+      log('🤖 Enviando dados de assiduidade para a IA processar...');
+      
+      // Prompt para a IA processar os dados e dar uma resposta amigável
+      const dataProcessingPrompt = `Com base nos dados de assiduidade fornecidos abaixo, formule uma resposta clara e amigável para o utilizador.
+      
+Query original: "${originalQuery}"
+Dados de assiduidade: ${JSON.stringify(attendanceData, null, 2)}
+
+Formate a resposta de forma natural e amigável. Se houver dados, apresente-os de forma organizada. Se houver erros, explique de forma compreensível.
+Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
+
+      // Criar uma nova mensagem temporária para receber a resposta processada
+      aiResponse.text = "";
+      aiResponse.isStreaming = true;
+      
+      let tempMessages = [...currentMessages, aiResponse];
+      setMessages(tempMessages);
+
+      const onData = (content) => {
+        aiResponse.text += content;
+        tempMessages = [...currentMessages, { ...aiResponse }];
+        setMessages(tempMessages);
+      };
+
+      const onDone = async () => {
+        log('✅ Resposta final da IA processada:', aiResponse.text);
+        
+        // Finalizar mensagem
+        aiResponse.isStreaming = false;
+        const finalMessages = [...currentMessages, aiResponse];
+        setMessages(finalMessages);
+        await saveMessages(finalMessages);
+
+        // TTS se modo voz estiver ativo
+        if (isVoiceModeEnabled && aiResponse.text.trim()) {
+          log('🔊 Modo de voz ativo - Executando TTS para resposta de assiduidade...');
+          try {
+            if (configData.hostnameAPI_TTS && configData.portAPI) {
+              await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
+            }
+          } catch (error) {
+            console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro no TTS:`, error);
+          }
+        }
+
+        setIsAiTyping(false);
+      };
+
+      const onError = (error) => {
+        console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao processar resposta final:`, error);
+        aiResponse.text = "Dados consultados, mas ocorreu um erro ao formatar a resposta.";
+        aiResponse.isStreaming = false;
+        
+        const finalMessages = [...currentMessages, aiResponse];
+        setMessages(finalMessages);
+        setIsAiTyping(false);
+      };
+
+      // Enviar para a IA processar
+      await startTextToTextStream({
+        prompt: dataProcessingPrompt,
+        messages: [], // Não incluir histórico para esta consulta específica
+        onData,
+        onDone,
+        onError
+      });
+
+    } catch (error) {
+      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao enviar dados para IA:`, error);
+      
+      aiResponse.text = "Erro ao processar dados de assiduidade.";
+      aiResponse.isStreaming = false;
+      
+      const finalMessages = [...currentMessages, aiResponse];
+      setMessages(finalMessages);
+      setIsAiTyping(false);
+    }
   };
 
   // FUNÇÃO UTILITÁRIA PARA CRIAR RESPOSTAS DE ERRO
@@ -403,7 +546,7 @@ export default function ChatRoom() {
       stopRecording();
     }
     
-    // Feedback para o usuário
+    // Feedback para o utilizador
     Alert.alert(
       'Modo de Voz',
       newMode 
