@@ -10,8 +10,7 @@ import {
   handleSTT, 
   handleSTTWithLanguage,
   handleLanguageDetection, 
-  retrieveAsyncStorageDataAsJson,
-  getFormattedTimestamp
+  retrieveAsyncStorageDataAsJson 
 } from '../../scripts/utils';
 import { startTextToTextStream } from '../../scripts/handleComunication';
 import attendanceAPI from '../../scripts/attendanceAPI';
@@ -74,13 +73,14 @@ export default function ChatRoom() {
           selectedSTTModel: data.selectedSTTModel,
           defaultLanguage: data.defaultLanguage,
           attendanceApiKey: data.attendanceApiKey ? '***' : 'não definida',
-          attendanceBaseUrl: data.attendanceBaseUrl
+          attendanceBaseUrl: data.attendanceBaseUrl,
+          userName: data.name
         });
       } else {
         log('⚠️ Nenhuma configuração encontrada - usando valores padrão');
       }
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao carregar configurações:`, error);
+      error(' ❌ Erro ao carregar configurações:', error);
     }
   };
 
@@ -93,7 +93,7 @@ export default function ChatRoom() {
         playsInSilentModeIOS: true,
       });
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao configurar áudio:`, error);
+      error(' Erro ao configurar áudio:', error);
     }
   };
 
@@ -117,7 +117,7 @@ export default function ChatRoom() {
         await saveMessages(initialMessages);
       }
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao carregar mensagens:`, error);
+      error(' Erro ao carregar mensagens:', error);
       Alert.alert('Erro', 'Falha ao carregar conversas anteriores');
     } finally {
       setIsLoading(false);
@@ -129,7 +129,7 @@ export default function ChatRoom() {
     try {
       await AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messagesToSave));
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] Erro ao salvar mensagens:`, error);
+      error(' Erro ao salvar mensagens:', error);
       Alert.alert('Erro', 'Falha ao salvar a conversa');
     }
   };
@@ -159,7 +159,6 @@ export default function ChatRoom() {
     
     log('📝 Processando resposta da IA...');
     log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
-    console.log(`${getFormattedTimestamp()} 🤖 INÍCIO do processamento de resposta da IA`);
     
     try {
       await processNormalChatResponse(currentMessages);
@@ -176,7 +175,8 @@ export default function ChatRoom() {
     const userPrompt = lastUserMessage.text;
     
     // Prompt especial para o agente de IA
-    const systemPrompt = `Você é um assistente inteligente que pode ajudar com várias tarefas, incluindo consultas sobre dados de assiduidade de colaboradores.
+    const systemPrompt = `///// START SYSTEM PROMPT////
+    // É um assistente inteligente que pode ajudar com várias tarefas, incluindo consultas sobre dados de assiduidade de colaboradores.
 
 IMPORTANTE - Sistema de Consulta de Assiduidade:
 Se o utilizador fizer perguntas relacionadas com assiduidade, presença, entrada, saída ou dados de colaboradores/funcionários, deves solicitar os dados que precisas para a resposta seguindo EXATAMENTE este formato:
@@ -210,9 +210,10 @@ IMPORTANTE: Use EXATAMENTE este formato com colchetes, dois pontos e pipe (|). N
 As respostas a este tipo de perguntas devem de ser curtas e objetivas.
 IMPORTANTE: usa linguagem natural e sem sinais de pontuações contrutores, este texto pode ser lido em voz alta por sintetizadores de voz.Não deves responder com **Detalhes:** * **Hora de entrada:** ... * **Hora de saída:** ... etc.
 
-Para outros assuntos, responda normalmente como um assistente prestável.`;
+Para outros assuntos, responda normalmente como um assistente prestável.
+///// END SYSTEM PROMPT /////`;
 
-    const prompt = systemPrompt + "\n\nutilizador: " + userPrompt;
+    const prompt = systemPrompt + "\n\nutilizador ("+userName+"): " + userPrompt;
     
     // Converter histórico de mensagens para formato da API
     const apiMessages = currentMessages
@@ -252,7 +253,6 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       
       if (attendanceQueryMatch) {
         log('🏢 IA solicitou dados de assiduidade:', attendanceQueryMatch[0]);
-        console.log(`${getFormattedTimestamp()} 🏢 ATTENDANCE_QUERY detectado: ${attendanceQueryMatch[0]}`);
         
         const queryType = attendanceQueryMatch[1].trim();
         const queryParams = attendanceQueryMatch[2].trim();
@@ -285,8 +285,6 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       setIsAiTyping(false);
     };
 
-    console.log(`${getFormattedTimestamp()} 🤖 FIM do processamento de resposta da IA`);
-
     const onError = (error) => {
       console.error('❌ Erro na API de Text to Text:', error);
       createErrorResponse(currentMessages, 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
@@ -306,7 +304,6 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
   const processAttendanceRequest = async (currentMessages, aiResponse, queryType, queryParams) => {
     try {
       log('🏢 Processando solicitação de assiduidade da IA:', { queryType, queryParams });
-      console.log(`${getFormattedTimestamp()} 🏢 Iniciando consulta de assiduidade: ${queryType} | ${queryParams}`);
       
       aiResponse.text = "Consultando dados de assiduidade...";
       aiResponse.isStreaming = true;
@@ -350,7 +347,6 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       }
       
       log('🏢 Resultado da consulta de assiduidade:', result);
-      console.log(`${getFormattedTimestamp()} 🏢 Resultado obtido:`, result.success ? '✅ SUCESSO' : '❌ ERRO');
       
       // Preparar dados para enviar de volta à IA
       let attendanceData;
@@ -387,7 +383,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.`;
       await sendAttendanceDataToAI(currentMessages, aiResponse, attendanceData, queryParams);
       
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao processar solicitação de assiduidade:`, error);
+      error(' ❌ Erro ao processar solicitação de assiduidade:', error);
       
       aiResponse.text = "Desculpe, ocorreu um erro ao consultar os dados de assiduidade.";
       aiResponse.isStreaming = false;
@@ -443,7 +439,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
               await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
             }
           } catch (error) {
-            console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro no TTS:`, error);
+            error(' ❌ Erro no TTS:', error);
           }
         }
 
@@ -451,7 +447,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       };
 
       const onError = (error) => {
-        console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao processar resposta final:`, error);
+        error(' ❌ Erro ao processar resposta final:', error);
         aiResponse.text = "Dados consultados, mas ocorreu um erro ao formatar a resposta.";
         aiResponse.isStreaming = false;
         
@@ -470,7 +466,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       });
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro ao enviar dados para IA:`, error);
+      error(' ❌ Erro ao enviar dados para IA:', error);
       
       aiResponse.text = "Erro ao processar dados de assiduidade.";
       aiResponse.isStreaming = false;
@@ -556,7 +552,6 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
   const startRecording = async () => {
     try {
       log('🎤 Iniciando gravação...');
-      console.log(`${getFormattedTimestamp()} 🎤 INÍCIO da gravação de voz`);
       
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
@@ -586,7 +581,6 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       setIsRecording(false);
       
       log('✅ Gravação salva em:', uri);
-      console.log(`${getFormattedTimestamp()} 🎤 FIM da gravação - Áudio salvo: ${uri}`);
       
       // Processar áudio gravado
       if (uri) {

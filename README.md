@@ -1,6 +1,6 @@
-# 🤖 Multimodal API Integrator
+# 🏢 DOM IT Access Control
 
-> Uma aplicação React Native multimodal para interação com IA, integração de APIs REST e funcionalidades avançadas de voz e texto.
+> Uma aplicação React Native multimodal para controlo de acessos, integração com sistemas de assiduidade e funcionalidades avançadas de IA conversacional com suporte a voz e texto.
 
 [🇵🇹 Português](#português) | [🇬🇧 English](#english)
 
@@ -10,9 +10,22 @@
 
 ### 📋 Sobre o Projeto
 
-O **Multimodal API Integrator** é uma aplicação React Native desenvolvida com Expo que permite interação multimodal com agentes de IA através de APIs REST. A aplicação oferece funcionalidades avançadas de chat com suporte a texto e voz, incluindo transcrição de fala, síntese de voz, detecção de idioma e streaming de respostas em tempo real.
+O **DOM IT Access Control** é uma aplicação React Native desenvolvida com Expo que oferece um sistema inteligente de controlo de acessos com integração a APIs de assiduidade. A aplicação permite consultas avançadas através de chat multimodal com IA, suportando interações por voz e texto, incluindo transcrição de fala, síntese de voz, detecção de idioma e streaming de respostas em tempo real.
 
 ### ✨ Características Principais
+
+#### 🏢 **Sistema de Controlo de Acessos**
+- **Consultas de Assiduidade**: Verificação inteligente de entradas e saídas de colaboradores
+- **Histórico de Presenças**: Acesso ao histórico completo de um colaborador
+- **Relatórios por Data**: Consultas de registos por data específica ou períodos
+- **Integração com API Flask**: Conexão com sistema backend de assiduidade
+- **Processamento Inteligente**: IA identifica automaticamente o tipo de consulta necessária
+
+#### 🤖 **Assistente IA Conversacional**
+- **Detecção Automática**: A IA identifica consultas relacionadas com assiduidade
+- **Processamento Contextual**: Compreende perguntas em linguagem natural
+- **Respostas Formatadas**: Apresenta dados de forma clara e organizada
+- **Streaming em Tempo Real**: Respostas progressivas para melhor experiência
 
 #### 🎤 **Funcionalidades de Voz**
 - **Gravação de Áudio**: Gravação de alta qualidade com feedback visual
@@ -88,13 +101,22 @@ npx expo start
 #### Configuração das APIs
 1. Abra a aplicação e navegue para "Configurações"
 2. Configure os seguintes parâmetros:
-   - **Hostname da API**: Endereço do servidor
+   - **Hostname da API**: Endereço do servidor (TTS/STT/IA)
    - **Porta da API**: Porta do servidor
    - **Voz Preferida**: Selecione entre as opções disponíveis
    - **Modelo STT**: Escolha o modelo de reconhecimento
    - **Idioma Padrão**: Defina o idioma principal
+   - **API de Assiduidade**: URL da API Flask (ex: https://flask-attendance-api-ymvx.onrender.com)
+   - **Chave da API**: Token de autenticação para a API de assiduidade
 
 ### 🔌 APIs Integradas
+
+#### 🏢 **API de Assiduidade (Flask)**
+- **Verificação de Entrada**: Consulta se um colaborador já entrou hoje
+- **Histórico de Colaborador**: Obtém o histórico completo de presenças
+- **Consultas por Data**: Registos filtrados por data específica
+- **Listagem Completa**: Acesso a todos os registos de assiduidade
+- **Formato de Resposta**: Dados estruturados com informações detalhadas (nome, data, horas, localização)
 
 #### Text-to-Speech (TTS)
 - Múltiplas vozes disponíveis
@@ -111,12 +133,41 @@ npx expo start
 - Re-transcrição com idioma detectado
 - Fallback para idioma padrão
 
-#### Text-to-Text Streaming
-- Resposta da IA em tempo real
+#### Text-to-Text Streaming (Llama3.1 8B)
+- Resposta da IA em tempo real com modelo Llama3.1 8B
 - Streaming palavra por palavra
 - Contexto de conversa mantido
+- Processamento inteligente de consultas de assiduidade
 
-### 📊 Funcionalidades Técnicas
+### � Como Usar o Sistema de Consultas
+
+#### Exemplos de Consultas de Assiduidade
+```
+👤 Utilizador: "O João já entrou hoje?"
+🤖 IA: [ATTENDANCE_QUERY: check_entry | João]
+📊 Sistema: Consulta a API de assiduidade
+🤖 Resposta: "Sim, o João entrou hoje às 08:42:00 no Escritório Central."
+
+👤 Utilizador: "Histórico do Pedro esta semana"
+🤖 IA: [ATTENDANCE_QUERY: get_history | Pedro]
+📊 Sistema: Obtém histórico completo
+🤖 Resposta: "O Pedro teve 4 entradas esta semana: Segunda às 08:30..."
+
+👤 Utilizador: "Quem entrou hoje?"
+🤖 IA: [ATTENDANCE_QUERY: get_records | date:hoje]
+📊 Sistema: Lista registos do dia
+🤖 Resposta: "Hoje entraram: João (08:42), Maria (09:15), Pedro (08:30)..."
+```
+
+#### Fluxo de Processamento
+1. **Entrada do Utilizador**: Pergunta em linguagem natural
+2. **Análise da IA**: Llama3.1 8B identifica se é consulta de assiduidade
+3. **Query Estruturada**: IA gera comando específico `[ATTENDANCE_QUERY: tipo | parâmetros]`
+4. **Consulta à API**: Sistema Flask processa a consulta
+5. **Formatação**: IA apresenta os dados de forma amigável
+6. **Resposta Final**: Utilizador recebe informação clara e organizada
+
+### �📊 Funcionalidades Técnicas
 
 #### Gerenciamento de Estado
 - AsyncStorage para persistência
