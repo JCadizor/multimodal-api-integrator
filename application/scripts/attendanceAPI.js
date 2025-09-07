@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import { retrieveAsyncStorageDataAsJson } from './utils.js';
 import { fetch } from 'expo/fetch';
+import { log, errorlog, warn } from './simpleLogger.js';
 
 /**
  * Classe para interação com a API REST de Assiduidade
@@ -30,9 +31,9 @@ class AttendanceAPI {
       if (userData && userData.attendanceBaseUrl) {
         this.baseUrl = userData.attendanceBaseUrl;
       }
-      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] 📡 API de Assiduidade configurada:`, this.baseUrl);
+      log(`[attendanceAPI.js] 📡 API de Assiduidade configurada:`, this.baseUrl);
     } catch (error) {
-      console.warn(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ⚠️ Usando configurações padrão da API de Assiduidade`);
+      warn(`[attendanceAPI.js] ⚠️ Usando configurações padrão da API de Assiduidade`);
     }
   }
 
@@ -47,7 +48,7 @@ class AttendanceAPI {
       const data = await response.json();
       return { success: true, data };
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao verificar status da API:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao verificar status da API:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -63,7 +64,7 @@ class AttendanceAPI {
       const data = await response.json();
       return { success: true, data };
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao obter info de autenticação:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao obter info de autenticação:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -82,7 +83,7 @@ class AttendanceAPI {
       if (date) params.append('date', date);
       
       const url = `${this.baseUrl}/attendance${params.toString() ? '?' + params.toString() : ''}`;
-      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] URL a ser chamada:`, url);
+      log(`[attendanceAPI.js] URL a ser chamada:`, url);
       const response = await fetch(url, {
         method: 'GET',
         headers: this.headers
@@ -93,11 +94,11 @@ class AttendanceAPI {
       }
 
       const data = await response.json();
-      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ✅ Registos de assiduidade obtidos:`, data);
+      log(`[attendanceAPI.js] ✅ Registos de assiduidade obtidos:`, data);
       return { success: true, data };
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao obter registos:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao obter registos:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -127,11 +128,11 @@ class AttendanceAPI {
       }
 
       const data = await response.json();
-      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ✅ Registo criado com sucesso:`, data);
+      log(`[attendanceAPI.js] ✅ Registo criado com sucesso:`, data);
       return { success: true, data };
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao criar registo:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao criar registo:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -157,11 +158,11 @@ class AttendanceAPI {
       }
 
       const data = await response.json();
-      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ✅ Registo obtido:`, data);
+      log(`[attendanceAPI.js] ✅ Registo obtido:`, data);
       return { success: true, data };
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao obter registo por ID:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao obter registo por ID:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -194,11 +195,11 @@ class AttendanceAPI {
       }
 
       const data = await response.json();
-      console.log(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ✅ Histórico obtido:`, data);
+      log(`[attendanceAPI.js] ✅ Histórico obtido:`, data);
       return { success: true, data };
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao obter histórico:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao obter histórico:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -237,7 +238,7 @@ class AttendanceAPI {
       }
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao verificar entrada do colaborador:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao verificar entrada do colaborador:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -266,7 +267,7 @@ class AttendanceAPI {
       return await this.createAttendance(attendanceData);
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao registar entrada:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao registar entrada:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -315,7 +316,7 @@ class AttendanceAPI {
       };
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] [attendanceAPI.js] ❌ Erro ao processar query natural:`, error);
+      errorlog(`[attendanceAPI.js] ❌ Erro ao processar query natural:`, error);
       return { success: false, error: error.message };
     }
   }
