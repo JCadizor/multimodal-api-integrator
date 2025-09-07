@@ -14,9 +14,23 @@ import {
 } from '../../scripts/utils';
 import { startTextToTextStream } from '../../scripts/handleComunication';
 import attendanceAPI from '../../scripts/attendanceAPI';
-import { log } from '../../scripts/simpleLogger.js';
+import { log,errorlog,warn } from '../../scripts/simpleLogger.js';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
+
+// Função utilitária para medição de tempo
+const createTimer = (operationName) => {
+  const startTime = Date.now();
+  return {
+    finish: (success = true) => {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      const result = success ? `${duration}ms` : 'N/A';
+      log(`⏱️ ${operationName}: ${result}`);
+      return { duration: success ? duration : null, result };
+    }
+  };
+};
 
 export default function ChatRoom() {
   const params = useLocalSearchParams();
@@ -74,13 +88,13 @@ export default function ChatRoom() {
           defaultLanguage: data.defaultLanguage,
           attendanceApiKey: data.attendanceApiKey ? '***' : 'não definida',
           attendanceBaseUrl: data.attendanceBaseUrl,
-          userName: data.name
+          userName: data.name || 'não definido'
         });
       } else {
         log('⚠️ Nenhuma configuração encontrada - usando valores padrão');
       }
     } catch (error) {
-      error(' ❌ Erro ao carregar configurações:', error);
+      errorlog(' ❌ Erro ao carregar configurações:', error);
     }
   };
 
@@ -93,7 +107,7 @@ export default function ChatRoom() {
         playsInSilentModeIOS: true,
       });
     } catch (error) {
-      error(' Erro ao configurar áudio:', error);
+      errorlog(' Erro ao configurar áudio:', error);
     }
   };
 
@@ -117,7 +131,7 @@ export default function ChatRoom() {
         await saveMessages(initialMessages);
       }
     } catch (error) {
-      error(' Erro ao carregar mensagens:', error);
+      errorlog(' Erro ao carregar mensagens:', error);
       Alert.alert('Erro', 'Falha ao carregar conversas anteriores');
     } finally {
       setIsLoading(false);
@@ -129,7 +143,7 @@ export default function ChatRoom() {
     try {
       await AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messagesToSave));
     } catch (error) {
-      error(' Erro ao salvar mensagens:', error);
+      errorlog(' Erro ao salvar mensagens:', error);
       Alert.alert('Erro', 'Falha ao salvar a conversa');
     }
   };
@@ -137,6 +151,8 @@ export default function ChatRoom() {
   // Envio de mensagem do utilizador
   const sendMessage = async () => {
     if (inputText.trim()) {
+      const totalTimer = createTimer('⏱️ TEMPO TOTAL (Mensagem → Resposta)');
+      
       const newMessage = {
         id: Date.now(),
         text: inputText.trim(),
@@ -149,28 +165,31 @@ export default function ChatRoom() {
       setInputText('');
       
       await saveMessages(updatedMessages);
-      await processAIResponse(updatedMessages);
+      await processAIResponse(updatedMessages, totalTimer);
     }
   };
 
   // Processamento de resposta da IA
-  const processAIResponse = async (currentMessages) => {
+  const processAIResponse = async (currentMessages, totalTimer) => {
     setIsAiTyping(true);
     
     log('📝 Processando resposta da IA...');
     log('🔊 Modo de voz:', isVoiceModeEnabled ? 'ATIVO' : 'INATIVO');
     
     try {
-      await processNormalChatResponse(currentMessages);
+      await processNormalChatResponse(currentMessages, totalTimer);
 
     } catch (error) {
-      console.error(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro geral no processamento da IA:`, error);
+      errorlog(`[${new Date().toLocaleTimeString('pt-PT', {hour12: false, fractionalSecondDigits: 3})}] ❌ Erro geral no processamento da IA:`, error);
       await createErrorResponse(currentMessages, 'Erro inesperado. Tente novamente.');
+      if (totalTimer) {
+        totalTimer.finish(false); // Mark as failed
+      }
     }
   };
 
   // Processamento normal de chat com IA
-  const processNormalChatResponse = async (currentMessages) => {
+  const processNormalChatResponse = async (currentMessages, totalTimer) => {
     const lastUserMessage = currentMessages[currentMessages.length - 1];
     const userPrompt = lastUserMessage.text;
     
@@ -213,6 +232,7 @@ IMPORTANTE: usa linguagem natural e sem sinais de pontuações contrutores, este
 Para outros assuntos, responda normalmente como um assistente prestável.
 ///// END SYSTEM PROMPT /////`;
 
+    const userName = configData?.name || 'utilizador';
     const prompt = systemPrompt + "\n\nutilizador ("+userName+"): " + userPrompt;
     
     // Converter histórico de mensagens para formato da API
@@ -225,6 +245,9 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       }));
 
     log('📡 Enviando para API:', { prompt, messages: apiMessages });
+    
+    // Criar timer para medir tempo de resposta da IA
+    const aiTimer = createTimer('🤖 IA');
 
     // Criar mensagem inicial da IA (será preenchida com streaming)
     const aiResponse = {
@@ -247,6 +270,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.
 
     const onDone = async () => {
       log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
+      aiTimer.finish(); // Medir tempo da IA
       
       // Detectar se a IA solicitou dados de assiduidade
       const attendanceQueryMatch = aiResponse.text.match(/\[ATTENDANCE_QUERY:\s*([^|]+)\s*\|\s*([^\]]+)\]/);
@@ -257,7 +281,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.
         const queryType = attendanceQueryMatch[1].trim();
         const queryParams = attendanceQueryMatch[2].trim();
         
-        await processAttendanceRequest(currentMessages, aiResponse, queryType, queryParams);
+        await processAttendanceRequest(currentMessages, aiResponse, queryType, queryParams, totalTimer);
         return;
       }
       
@@ -269,24 +293,35 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       // TTS se o modo voz estiver ativo
       if (isVoiceModeEnabled && aiResponse.text.trim()) {
         log('🔊 Modo de voz ativo - Executando TTS...');
+        const ttsTimer = createTimer('🔊 TTS');
         try {
           if (configData.hostnameAPI_TTS && configData.portAPI) {
             await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
+            ttsTimer.finish();
           } else {
-            console.warn('⚠️ Configurações não disponíveis para TTS');
+            warn('Configurações não disponíveis para TTS');
             Alert.alert('Aviso', 'Configurações de TTS não disponíveis');
+            ttsTimer.finish(false);
           }
         } catch (error) {
-          console.error('❌ Erro no TTS:', error);
+          errorlog('Erro no TTS:', error);
           Alert.alert('Erro', 'Erro ao reproduzir resposta em áudio');
+          ttsTimer.finish(false);
         }
       }
 
+      if (totalTimer) {
+        totalTimer.finish(); // Finalizar timer total
+      }
       setIsAiTyping(false);
     };
 
     const onError = (error) => {
-      console.error('❌ Erro na API de Text to Text:', error);
+      errorlog('Erro na API de Text to Text:', error);
+      aiTimer.finish(false); // Marcar IA timer como falha
+      if (totalTimer) {
+        totalTimer.finish(false); // Marcar timer total como falha
+      }
       createErrorResponse(currentMessages, 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
     };
 
@@ -301,7 +336,8 @@ Para outros assuntos, responda normalmente como um assistente prestável.
   };
 
   // Processamento de solicitações de assiduidade da IA
-  const processAttendanceRequest = async (currentMessages, aiResponse, queryType, queryParams) => {
+  const processAttendanceRequest = async (currentMessages, aiResponse, queryType, queryParams, totalTimer) => {
+    const dbTimer = createTimer('💾 Database');
     try {
       log('🏢 Processando solicitação de assiduidade da IA:', { queryType, queryParams });
       
@@ -347,6 +383,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       }
       
       log('🏢 Resultado da consulta de assiduidade:', result);
+      dbTimer.finish(); // Finalizar timer da database
       
       // Preparar dados para enviar de volta à IA
       let attendanceData;
@@ -380,34 +417,42 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       }
       
       // Enviar dados de volta para a IA processar e formatar resposta final
-      await sendAttendanceDataToAI(currentMessages, aiResponse, attendanceData, queryParams);
+      await sendAttendanceDataToAI(currentMessages, aiResponse, attendanceData, queryParams, totalTimer);
       
     } catch (error) {
-      error(' ❌ Erro ao processar solicitação de assiduidade:', error);
-      
+      errorlog('Erro ao processar solicitação de assiduidade:', error);
+      dbTimer.finish(false); // Marcar database timer como falha
+
       aiResponse.text = "Desculpe, ocorreu um erro ao consultar os dados de assiduidade.";
       aiResponse.isStreaming = false;
       
       const finalMessages = [...currentMessages, aiResponse];
       setMessages(finalMessages);
       await saveMessages(finalMessages);
+      
+      if (totalTimer) {
+        totalTimer.finish(false);
+      }
       setIsAiTyping(false);
     }
   };
 
   // Envio de dados de assiduidade de volta à IA
-  const sendAttendanceDataToAI = async (currentMessages, aiResponse, attendanceData, originalQuery) => {
+  const sendAttendanceDataToAI = async (currentMessages, aiResponse, attendanceData, originalQuery, totalTimer) => {
+    const aiSecondTimer = createTimer('🤖 IA (2ª chamada)');
     try {
       log('🤖 Enviando dados de assiduidade para a IA processar...');
       
-      // Prompt para a IA processar os dados e dar uma resposta amigável
-      const dataProcessingPrompt = `Com base nos dados de assiduidade fornecidos abaixo, formule uma resposta clara e amigável para o utilizador.
+      // Prompt para a IA processar os dados e dar uma resposta final
+      const dataProcessingPrompt = `// DATABASE RESPONSE //
+      Com base nos dados de assiduidade fornecidos abaixo, formule uma resposta curta e sucinta para o utilizador.
       
-Query original: "${originalQuery}"
-Dados de assiduidade: ${JSON.stringify(attendanceData, null, 2)}
+      Query original: "${originalQuery}"
+      Dados de assiduidade: ${JSON.stringify(attendanceData, null, 2)}
 
-Formate a resposta de forma natural e amigável. Se houver dados, apresente-os de forma organizada. Se houver erros, explique de forma compreensível.
-Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
+      Formate a resposta de forma natural. Se houver erros, explique de forma sucinta.
+      Não inclua a tag [ATTENDANCE_QUERY] na resposta final.
+      // END DATABASE RESPONSE //`;
 
       // Criar uma nova mensagem temporária para receber a resposta processada
       aiResponse.text = "";
@@ -424,6 +469,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
 
       const onDone = async () => {
         log('✅ Resposta final da IA processada:', aiResponse.text);
+        aiSecondTimer.finish(); // Finalizar timer da segunda chamada à IA
         
         // Finalizar mensagem
         aiResponse.isStreaming = false;
@@ -434,25 +480,38 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
         // TTS se modo voz estiver ativo
         if (isVoiceModeEnabled && aiResponse.text.trim()) {
           log('🔊 Modo de voz ativo - Executando TTS para resposta de assiduidade...');
+          const ttsTimer = createTimer('🔊 TTS');
           try {
             if (configData.hostnameAPI_TTS && configData.portAPI) {
               await handleTTS(aiResponse.text, configData, setIsTTSPlaying);
+              ttsTimer.finish();
+            } else {
+              ttsTimer.finish(false);
             }
           } catch (error) {
-            error(' ❌ Erro no TTS:', error);
+            errorlog(' ❌ Erro no TTS:', error);
+            ttsTimer.finish(false);
           }
         }
 
+        if (totalTimer) {
+          totalTimer.finish(); // Finalizar timer total
+        }
         setIsAiTyping(false);
       };
 
       const onError = (error) => {
-        error(' ❌ Erro ao processar resposta final:', error);
+        errorlog(' ❌ Erro ao processar resposta final:', error);
+        aiSecondTimer.finish(false); // Marcar segunda chamada à IA como falha
         aiResponse.text = "Dados consultados, mas ocorreu um erro ao formatar a resposta.";
         aiResponse.isStreaming = false;
         
         const finalMessages = [...currentMessages, aiResponse];
         setMessages(finalMessages);
+        
+        if (totalTimer) {
+          totalTimer.finish(false);
+        }
         setIsAiTyping(false);
       };
 
@@ -466,13 +525,18 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       });
 
     } catch (error) {
-      error(' ❌ Erro ao enviar dados para IA:', error);
+      errorlog(' ❌ Erro ao enviar dados para IA:', error);
+      aiSecondTimer.finish(false); // Marcar segunda chamada à IA como falha
       
       aiResponse.text = "Erro ao processar dados de assiduidade.";
       aiResponse.isStreaming = false;
       
       const finalMessages = [...currentMessages, aiResponse];
       setMessages(finalMessages);
+      
+      if (totalTimer) {
+        totalTimer.finish(false);
+      }
       setIsAiTyping(false);
     }
   };
@@ -562,7 +626,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       log('🎤 Gravação iniciada!');
       
     } catch (error) {
-      console.error('❌ Erro ao iniciar gravação:', error);
+      errorlog('❌ Erro ao iniciar gravação:', error);
       Alert.alert('Erro', 'Não foi possível iniciar a gravação');
     }
   };
@@ -588,7 +652,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       }
       
     } catch (error) {
-      console.error('❌ Erro ao parar gravação:', error);
+      errorlog('❌ Erro ao parar gravação:', error);
       Alert.alert('Erro', 'Erro ao processar gravação');
     }
   };
@@ -608,6 +672,7 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
 
       // 1. Primeira transcrição com idioma padrão para detectar idioma
       log('🎤 Primeira transcrição para detecção de idioma...');
+      const sttTimer = createTimer('🎤 STT');
       const initialTranscription = await handleSTT(audioUri, configData);
       
       // 2. Detectar idioma do texto transcrito
@@ -630,9 +695,12 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
           log('✅ Idioma detectado coincide com padrão, usando transcrição inicial');
         }
         
+        sttTimer.finish(); // Finalizar timer STT em caso de sucesso
+        
       } catch (langError) {
         console.warn('⚠️ Erro na detecção de idioma:', langError);
         log('📝 Continuando com transcrição inicial');
+        sttTimer.finish(); // Finalizar timer STT mesmo com erro na detecção de idioma
         // Continuar com a transcrição inicial
       }
       
@@ -640,7 +708,10 @@ Não inclua a tag [ATTENDANCE_QUERY] na resposta final.`;
       await createMessageFromTranscription(finalTranscription, true, detectedLanguage);
       
     } catch (error) {
-      console.error('❌ Erro ao processar áudio:', error);
+      errorlog('❌ Erro ao processar áudio:', error);
+      if (typeof sttTimer !== 'undefined') {
+        sttTimer.finish(false); // Marcar STT timer como falha
+      }
       // Fallback para simulação em caso de erro
       const fallbackTranscription = "Erro na transcrição - mensagem simulada";
       await createMessageFromTranscription(fallbackTranscription, true, null);

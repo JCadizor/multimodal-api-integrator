@@ -20,7 +20,7 @@ export const getTime = () => new Date().toLocaleTimeString();
 export const log = (...args) => console.log(`[${getTimestamp()}]`, ...args);
 
 // Wrapper para console.error com timestamp
-export const error = (...args) => console.error(`[${getTimestamp()}] ❌`, ...args);
+export const errorlog = (...args) => console.error(`[${getTimestamp()}] ❌`, ...args);
 
 // Wrapper para console.warn com timestamp
 export const warn = (...args) => console.warn(`[${getTimestamp()}] ⚠️`, ...args);
