@@ -89,13 +89,14 @@ class AttendanceAPI {
         headers: this.headers
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
       log(`[attendanceAPI.js] ✅ Registos de assiduidade obtidos:`, data);
-      return { success: true, data };
+      return data; // Retornar resposta bruta da API
 
     } catch (error) {
       errorlog(`[attendanceAPI.js] ❌ Erro ao obter registos:`, error);
@@ -106,7 +107,7 @@ class AttendanceAPI {
   /**
    * Criar novo registo de assiduidade
    * @param {Object} attendanceData - Dados do registo
-   */
+   
   async createAttendance(attendanceData) {
     try {
       await this.configure();
@@ -136,7 +137,7 @@ class AttendanceAPI {
       return { success: false, error: error.message };
     }
   }
-
+*/
   /**
    * Obter registo específico por ID
    * @param {number} id - ID do registo
@@ -213,29 +214,8 @@ class AttendanceAPI {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const result = await this.getAttendance(employeeName, today);
       
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
-
-      const records = result.data;
-      
-      if (records.length > 0 && records[0].time_entry) {
-        const message = `Sim — o ${employeeName} entrou hoje às ${records[0].time_entry}.`;
-        return { 
-          success: true, 
-          hasEntered: true, 
-          message: message,
-          entryTime: records[0].time_entry,
-          record: records[0]
-        };
-      } else {
-        const message = `Hoje o ${employeeName} ainda não entrou na empresa.`;
-        return { 
-          success: true, 
-          hasEntered: false, 
-          message: message 
-        };
-      }
+      // Retornar a resposta raw da API sem modificações
+      return result;
 
     } catch (error) {
       errorlog(`[attendanceAPI.js] ❌ Erro ao verificar entrada do colaborador:`, error);
@@ -247,7 +227,7 @@ class AttendanceAPI {
    * Registar entrada de colaborador
    * @param {string} name - Nome do colaborador
    * @param {string} location - Local (opcional)
-   */
+ 
   async recordEntry(name, location = null) {
     try {
       const now = new Date();
@@ -270,7 +250,7 @@ class AttendanceAPI {
       errorlog(`[attendanceAPI.js] ❌ Erro ao registar entrada:`, error);
       return { success: false, error: error.message };
     }
-  }
+  }  */
 
   /**
    * Processar query em linguagem natural sobre assiduidade
