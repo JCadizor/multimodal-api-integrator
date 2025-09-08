@@ -71,25 +71,24 @@ class AttendanceAPI {
 
   /**
    * Obter registos de assiduidade
-   * @param {string|null} nameOrQueryParams - Nome do colaborador OU queryParams estruturado (ex: "date:2025-09-05, name:João") (opcional)
-   * @param {string|null} date - Data no formato YYYY-MM-DD (opcional)
+   * @param {string|null} QueryParams - Nome do colaborador OU queryParams estruturado (ex: "date:2025-09-05, name:João") (opcional)
    */
-  async getAttendance(nameOrQueryParams = null, date = null) {
+  async getAttendance(QueryParams = null) {
     log(`[attendanceAPI.js] START getAttendance`);
     try {
       await this.configure();
       
-      log(`[attendanceAPI.js] 🔍 DEBUG: Parâmetros recebidos - nameOrQueryParams: "${nameOrQueryParams}", date: "${date}"`);
+      log(`[attendanceAPI.js] 🔍 DEBUG: Parâmetros recebidos - QueryParams: "${QueryParams}"`);
       
       let finalName = null;
-      let finalDate = date;
-      
+      let finalDate = null;
+
       // Se o primeiro parâmetro contém ":" ou "," pode ser queryParams estruturado
-      if (nameOrQueryParams && (nameOrQueryParams.includes(':') || nameOrQueryParams.includes(','))) {
+      if (QueryParams && (QueryParams.includes(':') || QueryParams.includes(','))) {
         log(`[attendanceAPI.js] 🔍 DEBUG: Detectado queryParams estruturado, processando...`);
-        
-        const params = nameOrQueryParams.split(',').map(p => p.trim());
-        
+
+        const params = QueryParams.split(',').map(p => p.trim());
+
         params.forEach(param => {
           log(`[attendanceAPI.js] 🔍 DEBUG: processando parâmetro: "${param}"`);
           if (param.startsWith('date:')) {

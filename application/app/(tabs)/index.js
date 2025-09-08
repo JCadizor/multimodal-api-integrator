@@ -19,7 +19,6 @@ import { useNavigation } from '@react-navigation/native';
 
 // IMPORTS LOCAIS
 import api_configurations from '../../constants/api_configurations.json';
-import ChatComponent from '../../components/chatComponent.js';
 import { sendSentimentAnalysis } from '../../scripts/sentimentAnalysis.js';
 import { hardware, hardwareLoad } from '../../scripts/hardware.js';
 import { handleTTS, handleLanguageDetection } from '../../scripts/utils.js';
@@ -69,7 +68,6 @@ export default function HomeScreen() {
   const [communicationOption, setCommunicationOption] = useState('');
   const [chat, setChat] = useState([]);
   const [currentReply, setCurrentReply] = useState('');
-  const [isChatVisible, setIsChatVisible] = useState(false);
 
   // CARREGAMENTO INICIAL
   useEffect(() => {
@@ -316,9 +314,6 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* CHAT COMPONENT */}
-          {isChatVisible && <ChatComponent />}
         </View>
 
         {/* MODAL PARA INPUT DO USUÁRIO */}

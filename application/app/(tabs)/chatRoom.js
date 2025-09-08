@@ -217,7 +217,7 @@ Tipos de consulta disponíveis:
 
 Exemplos em que hoje = 2025-08-23:
 - "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry | name:João]
-- "Histórico do Pedro" → Responda: [ATTENDANCE_QUERY: get_history | Pedro]  
+- "Histórico do Pedro" → Responda: [ATTENDANCE_QUERY: get_history | name: Pedro]  
 - "Quem entrou hoje?" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-23]
 - "Registos da sexta feira passada" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-22]
 - "Registos do João no dia 5 de setembro" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-09-05, name:João]
