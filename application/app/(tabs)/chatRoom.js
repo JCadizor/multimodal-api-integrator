@@ -14,7 +14,7 @@ import {
 } from '../../scripts/utils';
 import { startTextToTextStream } from '../../scripts/handleComunication';
 import attendanceAPI from '../../scripts/attendanceAPI';
-import { log,errorlog,warn } from '../../scripts/simpleLogger.js';
+import { log,errorlog,warn,getTimestamp } from '../../scripts/simpleLogger.js';
 
 const CHAT_STORAGE_KEY = '@chat_messages';
 
@@ -216,7 +216,7 @@ Tipos de consulta disponíveis:
 - list_all: Listar todos os registos
 
 Exemplos em que hoje = 2025-08-23:
-- "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry | name:João]
+- "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry |date:2025-08-23, name:João]
 - "Histórico do Pedro" → Responda: [ATTENDANCE_QUERY: get_history | name: Pedro]  
 - "Quem entrou hoje?" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-23]
 - "Registos da sexta feira passada" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-22]
@@ -242,8 +242,8 @@ Para outros assuntos, responda normalmente como um assistente prestável.
 ///// END SYSTEM PROMPT /////`;
 
     const userName = configData?.name || 'utilizador';
-    const prompt = systemPrompt + "\n\nutilizador ("+userName+"): " + userPrompt;
-    
+    const prompt = systemPrompt + "\n USER " + userName + " ("+getTimestamp()+"): " + userPrompt;
+
     // Converter histórico de mensagens para formato da API
     const apiMessages = currentMessages
       .filter(msg => msg.sender !== 'ai' || msg.text !== "Olá! Como posso ajudá-lo hoje?")
@@ -414,15 +414,14 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       log('🤖 Enviando dados de assiduidade raw para a IA processar...');
       
       // Prompt para a IA processar os dados raw e dar uma resposta final
-      const dataProcessingPrompt = `// DATABASE RESPONSE //
+      const dataProcessingPrompt = `//SYSTEM RESPONSE//
       Com base nos dados de assiduidade fornecidos abaixo, formule uma resposta curta e sucinta para o utilizador.
-      
-      Query original: "${originalQuery}"
-      Dados raw da API de assiduidade: ${JSON.stringify(rawAttendanceData, null, 2)}
-
+    // DATABASE RESPONSE //
+      ${JSON.stringify(rawAttendanceData, null, 2)}
+    // END DATABASE RESPONSE //
       Formate a resposta de forma natural. Se houver erros, explique de forma sucinta.
       Não inclua a [ATTENDANCE_QUERY] na resposta final.
-      // END DATABASE RESPONSE //`;
+      //END SYSTEM RESPONSE//`;
 
       // Criar uma nova mensagem temporária para receber a resposta processada
       aiResponse.text = "";
