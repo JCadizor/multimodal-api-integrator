@@ -240,9 +240,10 @@ IMPORTANTE: usa linguagem natural e sem sinais de pontuações contrutores, este
 
 Para outros assuntos, responda normalmente como um assistente prestável.
 ///// END SYSTEM PROMPT /////`;
-
+    // today in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
     const userName = configData?.name || 'utilizador';
-    const prompt = systemPrompt + "\n USER " + userName + " ("+getTimestamp()+"): " + userPrompt;
+    const prompt = systemPrompt + "\n USER " + userName + " ( today:"+today+"): " + userPrompt;
 
     // Converter histórico de mensagens para formato da API
     const apiMessages = currentMessages
