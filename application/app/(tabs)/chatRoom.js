@@ -150,7 +150,8 @@ export default function ChatRoom() {
 
   // Envio de mensagem do utilizador
   const sendMessage = async () => {
-    if (inputText.trim()) {
+    // Proteção contra múltiplas execuções
+    if (inputText.trim() && !isAiTyping) {
       const totalTimer = createTimer('⏱️ TEMPO TOTAL (Mensagem → Resposta)');
       
       const newMessage = {
@@ -171,6 +172,12 @@ export default function ChatRoom() {
 
   // Processamento de resposta da IA
   const processAIResponse = async (currentMessages, totalTimer) => {
+    // Dupla proteção contra múltiplas execuções
+    if (isAiTyping) {
+      warn('⚠️ IA já está processando uma resposta. Ignorando nova solicitação.');
+      return;
+    }
+    
     setIsAiTyping(true);
     
     log('📝 Processando resposta da IA...');
@@ -209,10 +216,12 @@ Tipos de consulta disponíveis:
 - list_all: Listar todos os registos
 
 Exemplos em que hoje = 2025-08-23:
-- "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry | João]
+- "O João já entrou hoje?" → Responda: [ATTENDANCE_QUERY: check_entry | name:João]
 - "Histórico do Pedro" → Responda: [ATTENDANCE_QUERY: get_history | Pedro]  
 - "Quem entrou hoje?" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-23]
 - "Registos da sexta feira passada" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-22]
+- "Registos do João no dia 5 de setembro" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-09-05, name:João]
+- "Entradas do Igor Ferreira ontem" → Responda: [ATTENDANCE_QUERY: get_records | date:2025-08-22, name:Igor Ferreira]
 
 Exemplo de resposta da Base de Dados de Assiduidade:
 {
@@ -262,17 +271,18 @@ Para outros assuntos, responda normalmente como um assistente prestável.
     setMessages(tempMessages);
     await saveMessages(tempMessages);
 
-    const onData = (content) => {
+    const onStreamData = (content) => {
       aiResponse.text += content;
       tempMessages = [...currentMessages, { ...aiResponse }];
       setMessages(tempMessages);
     };
 
-    const onDone = async () => {
+    const onStreamDone = async () => {
       log('✅ Stream finalizado. Resposta completa:', aiResponse.text);
       aiTimer.finish(); // Medir tempo da IA
       
       // Detectar se a IA solicitou dados de assiduidade
+
       const attendanceQueryMatch = aiResponse.text.match(/\[ATTENDANCE_QUERY:\s*([^|]+)\s*\|\s*([^\]]+)\]/);
       
       if (attendanceQueryMatch) {
@@ -316,7 +326,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       setIsAiTyping(false);
     };
 
-    const onError = (error) => {
+    const onStreamError = (error) => {
       errorlog('Erro na API de Text to Text:', error);
       aiTimer.finish(false); // Marcar IA timer como falha
       if (totalTimer) {
@@ -329,9 +339,9 @@ Para outros assuntos, responda normalmente como um assistente prestável.
     await startTextToTextStream({
       prompt,
       messages: apiMessages,
-      onData,
-      onDone,
-      onError
+      onData: onStreamData,
+      onDone: onStreamDone,
+      onError: onStreamError
     });
   };
 
@@ -351,7 +361,9 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       
       switch (queryType) {
         case 'check_entry':
-          result = await attendanceAPI.checkEmployeeEntryToday(queryParams);
+         
+          log(`[chatRoom.js] 🏢 Verificando entrada de "${queryParams}")`);
+          result = await attendanceAPI.getAttendance(queryParams);
           break;
           
         case 'get_history':
@@ -359,19 +371,8 @@ Para outros assuntos, responda normalmente como um assistente prestável.
           break;
           
         case 'get_records':
-          if (queryParams.startsWith('date:')) {
-            const dateParam = queryParams.replace('date:', '');
-            let date = null;
-            
-            if (dateParam === 'hoje') {
-              date = new Date().toISOString().split('T')[0];
-            }
-            // Adicionar mais lógica de datas se necessário
-            
-            result = await attendanceAPI.getAttendance(null, date);
-          } else {
-            result = await attendanceAPI.getAttendance(queryParams, null);
-          }
+        
+          result = await attendanceAPI.getAttendance(queryParams);
           break;
           
         case 'list_all':
@@ -451,7 +452,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       Dados de assiduidade: ${JSON.stringify(attendanceData, null, 2)}
 
       Formate a resposta de forma natural. Se houver erros, explique de forma sucinta.
-      Não inclua a tag [ATTENDANCE_QUERY] na resposta final.
+      Não inclua a [ATTENDANCE_QUERY] na resposta final.
       // END DATABASE RESPONSE //`;
 
       // Criar uma nova mensagem temporária para receber a resposta processada
@@ -461,13 +462,13 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       let tempMessages = [...currentMessages, aiResponse];
       setMessages(tempMessages);
 
-      const onData = (content) => {
+      const onAttendanceResponseData = (content) => {
         aiResponse.text += content;
         tempMessages = [...currentMessages, { ...aiResponse }];
         setMessages(tempMessages);
       };
 
-      const onDone = async () => {
+      const onAttendanceResponseDone = async () => {
         log('✅ Resposta final da IA processada:', aiResponse.text);
         aiSecondTimer.finish(); // Finalizar timer da segunda chamada à IA
         
@@ -500,7 +501,7 @@ Para outros assuntos, responda normalmente como um assistente prestável.
         setIsAiTyping(false);
       };
 
-      const onError = (error) => {
+      const onAttendanceResponseError = (error) => {
         errorlog(' ❌ Erro ao processar resposta final:', error);
         aiSecondTimer.finish(false); // Marcar segunda chamada à IA como falha
         aiResponse.text = "Dados consultados, mas ocorreu um erro ao formatar a resposta.";
@@ -519,9 +520,9 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       await startTextToTextStream({
         prompt: dataProcessingPrompt,
         messages: [], // Não incluir histórico para esta consulta específica
-        onData,
-        onDone,
-        onError
+        onData: onAttendanceResponseData,
+        onDone: onAttendanceResponseDone,
+        onError: onAttendanceResponseError
       });
 
     } catch (error) {

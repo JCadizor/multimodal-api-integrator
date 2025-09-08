@@ -71,18 +71,63 @@ class AttendanceAPI {
 
   /**
    * Obter registos de assiduidade
-   * @param {string} name - Nome do colaborador (opcional)
-   * @param {string} date - Data no formato YYYY-MM-DD (opcional)
+   * @param {string|null} nameOrQueryParams - Nome do colaborador OU queryParams estruturado (ex: "date:2025-09-05, name:João") (opcional)
+   * @param {string|null} date - Data no formato YYYY-MM-DD (opcional)
    */
-  async getAttendance(name = null, date = null) {
+  async getAttendance(nameOrQueryParams = null, date = null) {
+    log(`[attendanceAPI.js] START getAttendance`);
     try {
       await this.configure();
       
-      const params = new URLSearchParams();
-      if (name) params.append('name', name);
-      if (date) params.append('date', date);
+      log(`[attendanceAPI.js] 🔍 DEBUG: Parâmetros recebidos - nameOrQueryParams: "${nameOrQueryParams}", date: "${date}"`);
       
-      const url = `${this.baseUrl}/attendance${params.toString() ? '?' + params.toString() : ''}`;
+      let finalName = null;
+      let finalDate = date;
+      
+      // Se o primeiro parâmetro contém ":" ou "," pode ser queryParams estruturado
+      if (nameOrQueryParams && (nameOrQueryParams.includes(':') || nameOrQueryParams.includes(','))) {
+        log(`[attendanceAPI.js] 🔍 DEBUG: Detectado queryParams estruturado, processando...`);
+        
+        const params = nameOrQueryParams.split(',').map(p => p.trim());
+        
+        params.forEach(param => {
+          log(`[attendanceAPI.js] 🔍 DEBUG: processando parâmetro: "${param}"`);
+          if (param.startsWith('date:')) {
+            const dateParam = param.replace('date:', '');
+            if (dateParam === 'hoje') {
+              finalDate = new Date().toISOString().split('T')[0];
+            } else {
+              finalDate = dateParam;
+            }
+            log(`[attendanceAPI.js] 🔍 DEBUG: finalDate definido como: "${finalDate}"`);
+          } else if (param.startsWith('name:')) {
+            finalName = param.replace('name:', '');
+            log(`[attendanceAPI.js] 🔍 DEBUG: finalName definido como: "${finalName}"`);
+          } else if (!param.includes(':')) {
+            // Se não tem prefixo, assumir que é nome
+            finalName = param;
+            log(`[attendanceAPI.js] 🔍 DEBUG: finalName (sem prefixo) definido como: "${finalName}"`);
+          }
+        });
+      } else if (nameOrQueryParams) {
+        // Parâmetro simples - é um nome
+        finalName = nameOrQueryParams;
+        log(`[attendanceAPI.js] 🔍 DEBUG: Usando como nome simples: "${finalName}"`);
+      }
+      
+      log(`[attendanceAPI.js] 🔍 DEBUG: Parâmetros finais - finalName: "${finalName}", finalDate: "${finalDate}"`);
+      
+      const urlParams = new URLSearchParams();
+      if (finalName) {
+        log(`[attendanceAPI.js] 🔍 DEBUG: Adicionando name ao params: "${finalName}"`);
+        urlParams.append('name', finalName);
+      }
+      if (finalDate) {
+        log(`[attendanceAPI.js] 🔍 DEBUG: Adicionando date ao params: "${finalDate}"`);
+        urlParams.append('date', finalDate);
+      }
+      
+      const url = `${this.baseUrl}/attendance${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
       log(`[attendanceAPI.js] URL a ser chamada:`, url);
       const response = await fetch(url, {
         method: 'GET',
@@ -100,7 +145,8 @@ class AttendanceAPI {
 
     } catch (error) {
       errorlog(`[attendanceAPI.js] ❌ Erro ao obter registos:`, error);
-      return { success: false, error: error.message };
+      log(`[attendanceAPI.js] END getAttendance`);
+      return { success: false, error: error.message};
     }
   }
 
@@ -130,7 +176,7 @@ class AttendanceAPI {
 
       const data = await response.json();
       log(`[attendanceAPI.js] ✅ Registo criado com sucesso:`, data);
-      return { success: true, data };
+      return data;
 
     } catch (error) {
       errorlog(`[attendanceAPI.js] ❌ Erro ao criar registo:`, error);
@@ -143,6 +189,7 @@ class AttendanceAPI {
    * @param {number} id - ID do registo
    */
   async getAttendanceById(id) {
+    log(`[attendanceAPI.js] START getAttendanceById`);
     try {
       await this.configure();
       
@@ -160,7 +207,7 @@ class AttendanceAPI {
 
       const data = await response.json();
       log(`[attendanceAPI.js] ✅ Registo obtido:`, data);
-      return { success: true, data };
+      return data;
 
     } catch (error) {
       errorlog(`[attendanceAPI.js] ❌ Erro ao obter registo por ID:`, error);
@@ -197,7 +244,7 @@ class AttendanceAPI {
 
       const data = await response.json();
       log(`[attendanceAPI.js] ✅ Histórico obtido:`, data);
-      return { success: true, data };
+      return data;
 
     } catch (error) {
       errorlog(`[attendanceAPI.js] ❌ Erro ao obter histórico:`, error);
@@ -210,14 +257,17 @@ class AttendanceAPI {
    * @param {string} employeeName - Nome do colaborador
    */
   async checkEmployeeEntryToday(employeeName) {
+    log(`[attendanceAPI.js] START checkEmployeeEntryToday`);
     try {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const result = await this.getAttendance(employeeName, today);
       
       // Retornar a resposta raw da API sem modificações
+      log(`[attendanceAPI.js] END checkEmployeeEntryToday`);
       return result;
 
     } catch (error) {
+      log(`[attendanceAPI.js] END checkEmployeeEntryToday`);
       errorlog(`[attendanceAPI.js] ❌ Erro ao verificar entrada do colaborador:`, error);
       return { success: false, error: error.message };
     }
@@ -251,106 +301,6 @@ class AttendanceAPI {
       return { success: false, error: error.message };
     }
   }  */
-
-  /**
-   * Processar query em linguagem natural sobre assiduidade
-   * @param {string} query - Pergunta do utilizador
-   */
-  async processNaturalQuery(query) {
-    try {
-      // Análise simples de padrões na query
-      const lowerQuery = query.toLowerCase();
-      
-      // Padrão: "colaborador X já entrou hoje?"
-      const entryPattern = /(.+?)\s+(já\s+entrou|entrou)\s+(hoje|hoj)/i;
-      const entryMatch = query.match(entryPattern);
-      
-      if (entryMatch) {
-        const employeeName = entryMatch[1].trim();
-        return await this.checkEmployeeEntryToday(employeeName);
-      }
-
-      // Padrão: "histórico do colaborador X"
-      const historyPattern = /(histórico|historia)\s+(do|da)?\s*(.+)/i;
-      const historyMatch = query.match(historyPattern);
-      
-      if (historyMatch) {
-        const employeeName = historyMatch[3].trim();
-        return await this.getHistory(employeeName);
-      }
-
-      // Padrão: "registos de hoje"
-      if (lowerQuery.includes('registos') && lowerQuery.includes('hoje')) {
-        const today = new Date().toISOString().split('T')[0];
-        return await this.getAttendance(null, today);
-      }
-
-      // Padrão genérico - listar todos os registos
-      if (lowerQuery.includes('listar') || lowerQuery.includes('todos')) {
-        return await this.getAttendance();
-      }
-
-      return {
-        success: false,
-        error: 'Não consegui entender a pergunta. Experimente perguntas como: "João já entrou hoje?" ou "histórico do João"'
-      };
-
-    } catch (error) {
-      errorlog(`[attendanceAPI.js] ❌ Erro ao processar query natural:`, error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Formatar resposta para apresentação ao utilizador
-   * @param {Object} result - Resultado da API
-   * @param {string} queryType - Tipo de consulta
-   */
-  formatResponse(result, queryType = 'general') {
-    if (!result.success) {
-      return `Erro: ${result.error}`;
-    }
-
-    switch (queryType) {
-      case 'entry_check':
-        return result.message;
-      
-      case 'history':
-        if (result.data && result.data.length > 0) {
-          const records = result.data.slice(0, 5); // Mostrar apenas os primeiros 5
-          let response = `Últimos registos:\n`;
-          records.forEach(record => {
-            response += `📅 ${record.date} - Entrada: ${record.time_entry || 'N/A'}`;
-            if (record.time_exit) response += ` - Saída: ${record.time_exit}`;
-            if (record.location) response += ` - Local: ${record.location}`;
-            response += '\n';
-          });
-          return response;
-        } else {
-          return 'Nenhum registo encontrado.';
-        }
-      
-      case 'list':
-        if (result.data && result.data.length > 0) {
-          const records = result.data.slice(0, 3); // Mostrar apenas os primeiros 3
-          let response = `Registos encontrados (${result.data.length}):\n`;
-          records.forEach(record => {
-            response += `👤 ${record.name} - ${record.date}`;
-            if (record.time_entry) response += ` às ${record.time_entry}`;
-            response += '\n';
-          });
-          if (result.data.length > 3) {
-            response += `... e mais ${result.data.length - 3} registos.`;
-          }
-          return response;
-        } else {
-          return 'Nenhum registo encontrado.';
-        }
-      
-      default:
-        return JSON.stringify(result.data, null, 2);
-    }
-  }
 }
 
 // Instância singleton da API
@@ -363,4 +313,3 @@ export const checkEmployeeEntry = (name) => attendanceAPI.checkEmployeeEntryToda
 export const getAttendanceRecords = (name, date) => attendanceAPI.getAttendance(name, date);
 export const createAttendanceRecord = (data) => attendanceAPI.createAttendance(data);
 export const getEmployeeHistory = (name, limit) => attendanceAPI.getHistory(name, limit);
-export const processAttendanceQuery = (query) => attendanceAPI.processNaturalQuery(query);

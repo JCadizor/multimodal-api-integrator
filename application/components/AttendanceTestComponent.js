@@ -47,22 +47,41 @@ export default function AttendanceTestComponent() {
   const testNaturalQuery = async () => {
     setIsLoading(true);
     try {
-      const queries = [
-        'João já entrou hoje?',
-        'Colaborador A já entrou hoje?',
-        'histórico do João',
-        'registos de hoje'
+      // Teste direto das funções da API em vez de processNaturalQuery
+      const testOptions = [
+        { name: 'João', action: 'checkEmployeeEntryToday' },
+        { name: 'Colaborador A', action: 'checkEmployeeEntryToday' },
+        { name: 'João', action: 'getHistory', limit: 5 },
+        { date: new Date().toISOString().split('T')[0], action: 'getAttendance' }
       ];
       
-      const randomQuery = queries[Math.floor(Math.random() * queries.length)];
-      const result = await attendanceAPI.processNaturalQuery(randomQuery);
-      addTestResult(`Query: "${randomQuery}"`, result);
+      const randomTest = testOptions[Math.floor(Math.random() * testOptions.length)];
+      let result;
+      let queryDesc;
       
-      if (result.success) {
-        const formatted = attendanceAPI.formatResponse(result, 'entry_check');
-        Alert.alert('Resposta', formatted);
-      } else {
+      switch (randomTest.action) {
+        case 'checkEmployeeEntryToday':
+          result = await attendanceAPI.checkEmployeeEntryToday(randomTest.name);
+          queryDesc = `Verificar entrada de ${randomTest.name} hoje`;
+          break;
+        case 'getHistory':
+          result = await attendanceAPI.getHistory(randomTest.name, randomTest.limit);
+          queryDesc = `Histórico de ${randomTest.name}`;
+          break;
+        case 'getAttendance':
+          result = await attendanceAPI.getAttendance(null, randomTest.date);
+          queryDesc = `Registos de hoje (${randomTest.date})`;
+          break;
+      }
+      
+      addTestResult(`Teste: "${queryDesc}"`, result);
+      
+      if (Array.isArray(result)) {
+        Alert.alert('Sucesso', `Encontrados ${result.length} registos`);
+      } else if (result && !result.success) {
         Alert.alert('Erro', result.error);
+      } else {
+        Alert.alert('Sucesso', 'Teste executado com sucesso');
       }
     } catch (error) {
       Alert.alert('Erro', error.message);
