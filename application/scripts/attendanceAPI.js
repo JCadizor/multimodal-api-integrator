@@ -139,7 +139,7 @@ class AttendanceAPI {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      log(`[attendanceAPI.js] ✅ Registos de assiduidade obtidos:`, data);
+      log(`[attendanceAPI.js] ✅ Registos de assiduidade obtidos`);
       return data; // Retornar resposta bruta da API
 
     } catch (error) {

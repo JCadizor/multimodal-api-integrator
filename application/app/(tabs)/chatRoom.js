@@ -386,39 +386,8 @@ Para outros assuntos, responda normalmente como um assistente prestável.
       log('🏢 Resultado da consulta de assiduidade:', result);
       dbTimer.finish(); // Finalizar timer da database
       
-      // Preparar dados para enviar de volta à IA
-      let attendanceData;
-      if (result.success) {
-        if (result.hasEntered !== undefined) {
-          // Resultado de verificação de entrada
-          attendanceData = {
-            type: 'check_entry',
-            employee: queryParams,
-            hasEntered: result.hasEntered,
-            message: result.message,
-            entryTime: result.entryTime || null
-          };
-        } else if (Array.isArray(result.data)) {
-          // Resultado de consulta de registos
-          attendanceData = {
-            type: 'records',
-            data: result.data.map(record => ({
-              name: record.name,
-              date: record.date,
-              timeEntry: record.time_entry,
-              timeExit: record.time_exit,
-              location: record.location
-            }))
-          };
-        } else {
-          attendanceData = { type: 'other', data: result.data };
-        }
-      } else {
-        attendanceData = { type: 'error', error: result.error };
-      }
-      
-      // Enviar dados de volta para a IA processar e formatar resposta final
-      await sendAttendanceDataToAI(currentMessages, aiResponse, attendanceData, queryParams, totalTimer);
+      // Enviar dados raw diretamente para a IA processar e formatar resposta final
+      await sendAttendanceDataToAI(currentMessages, aiResponse, result, queryParams, totalTimer);
       
     } catch (error) {
       errorlog('Erro ao processar solicitação de assiduidade:', error);
@@ -439,17 +408,17 @@ Para outros assuntos, responda normalmente como um assistente prestável.
   };
 
   // Envio de dados de assiduidade de volta à IA
-  const sendAttendanceDataToAI = async (currentMessages, aiResponse, attendanceData, originalQuery, totalTimer) => {
+  const sendAttendanceDataToAI = async (currentMessages, aiResponse, rawAttendanceData, originalQuery, totalTimer) => {
     const aiSecondTimer = createTimer('🤖 IA (2ª chamada)');
     try {
-      log('🤖 Enviando dados de assiduidade para a IA processar...');
+      log('🤖 Enviando dados de assiduidade raw para a IA processar...');
       
-      // Prompt para a IA processar os dados e dar uma resposta final
+      // Prompt para a IA processar os dados raw e dar uma resposta final
       const dataProcessingPrompt = `// DATABASE RESPONSE //
       Com base nos dados de assiduidade fornecidos abaixo, formule uma resposta curta e sucinta para o utilizador.
       
       Query original: "${originalQuery}"
-      Dados de assiduidade: ${JSON.stringify(attendanceData, null, 2)}
+      Dados raw da API de assiduidade: ${JSON.stringify(rawAttendanceData, null, 2)}
 
       Formate a resposta de forma natural. Se houver erros, explique de forma sucinta.
       Não inclua a [ATTENDANCE_QUERY] na resposta final.
